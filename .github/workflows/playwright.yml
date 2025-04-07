@@ -16,7 +16,7 @@ jobs:
     - name: Install JBang
       run: curl -Ls https://sh.jbang.dev | bash -s - app setup
     - name: Install Camel JBang
-      run: jbang app install camel@apache/camel
+      run: ~/.jbang/bin/jbang app install camel@apache/camel
     - run: docker compose -f tests/compose.yaml up -d --wait
     - run: camel run * java/* datasonnet/* test/application.test.properties
     - name: Install dependencies
