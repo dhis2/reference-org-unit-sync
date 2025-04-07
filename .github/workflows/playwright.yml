@@ -15,6 +15,7 @@ jobs:
         node-version: lts/*
     - name: Install JBang
       run: curl -Ls https://sh.jbang.dev | bash -s - app setup
+    - run: ~/.jbang/bin/jbang trust add https://github.com/apache/camel/
     - name: Install Camel JBang
       run: ~/.jbang/bin/jbang app install camel@apache/camel
     - run: docker compose -f tests/compose.yaml up -d --wait
