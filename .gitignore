@@ -1,4 +1,11 @@
 .idea/
 .camel-jbang/
 .citrus-jbang/
-offset.dat
+data/offset.dat
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

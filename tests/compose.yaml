@@ -1,6 +1,7 @@
 networks:
   sourceDb:
   targetDb:
+  anotherTargetDb:
 
 services:
   artemis:
@@ -32,6 +33,40 @@ services:
     networks:
       - sourceDb
 
+  targetDb:
+    image: postgis/postgis:13-3.4-alpine
+    ports:
+      - "5432"
+    environment:
+      - POSTGRES_USER=dhis
+      - POSTGRES_PASSWORD=dhis
+      - POSTGRES_DB=dhis2
+    healthcheck:
+      test: [ "CMD-SHELL", "psql --no-password --quiet --username $$POSTGRES_USER postgres://127.0.0.1/$$POSTGRES_DB -p 5432 --command \"SELECT 'ok'\" > /dev/null" ]
+      start_period: 120s
+      interval: 1s
+      timeout: 3s
+      retries: 5
+    networks:
+      - targetDb
+
+  anotherTargetDb:
+    image: postgis/postgis:13-3.4-alpine
+    ports:
+      - "5432"
+    environment:
+      - POSTGRES_USER=dhis
+      - POSTGRES_PASSWORD=dhis
+      - POSTGRES_DB=dhis2
+    healthcheck:
+      test: [ "CMD-SHELL", "psql --no-password --quiet --username $$POSTGRES_USER postgres://127.0.0.1/$$POSTGRES_DB -p 5432 --command \"SELECT 'ok'\" > /dev/null" ]
+      start_period: 120s
+      interval: 1s
+      timeout: 3s
+      retries: 5
+    networks:
+      - anotherTargetDb
+
   sourceDhis2:
     image: "dhis2/core:40.5.0"
     ports:
@@ -51,23 +86,6 @@ services:
     networks:
       - sourceDb
 
-  targetDb:
-    image: postgis/postgis:13-3.4-alpine
-    ports:
-      - "5432"
-    environment:
-      - POSTGRES_USER=dhis
-      - POSTGRES_PASSWORD=dhis
-      - POSTGRES_DB=dhis2
-    healthcheck:
-      test: [ "CMD-SHELL", "psql --no-password --quiet --username $$POSTGRES_USER postgres://127.0.0.1/$$POSTGRES_DB -p 5432 --command \"SELECT 'ok'\" > /dev/null" ]
-      start_period: 120s
-      interval: 1s
-      timeout: 3s
-      retries: 5
-    networks:
-      - targetDb
-
   targetDhis2:
     image: "dhis2/core:40.5.0"
     ports:
@@ -86,3 +104,22 @@ services:
       retries: 5
     networks:
       - targetDb
+
+  anotherTargetDhis2:
+    image: "dhis2/core:40.5.0"
+    ports:
+      - "8082:8080"
+    restart: unless-stopped
+    volumes:
+      - ./dhis2/anotherTargetDhis.conf:/opt/dhis2/dhis.conf:ro
+    depends_on:
+      targetDb:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -q -S -O /dev/null http://127.0.0.1:8080/dhis-web-commons/security/login.action 2>&1| grep -q 'HTTP.*200'" ]
+      start_period: 120s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - anotherTargetDb

@@ -1,0 +1,42 @@
+- route:
+    id: syncOrgUnitGroupSetCreateOrUpdateRoute
+    routeConfigurationId: deadLetterQueueRouteConfig
+    logMask: true
+    from:
+      uri: direct:syncOrgUnitGroupSetCreateOrUpdate
+      steps:
+        - setProperty:
+            name: id
+            simple: ${body}
+        - toD:
+            uri: dhis2:get/resource
+            parameters:
+              path: "organisationUnitGroupSets/${exchangeProperty.id}"
+              fields: "*"
+              username: "{{source.dhis2ApiUsername}}"
+              password: "{{source.dhis2ApiPassword}}"
+              baseApiUrl: "{{source.dhis2ApiUrl}}"
+        - unmarshal:
+            json: { }
+        - setProperty:
+            name: orgUnitGroupSet
+            simple: ${body}
+        - log:
+            loggingLevel: INFO
+            message: "Syncing create/update for org unit group set [${exchangeProperty.id}]..."
+        - split:
+            shareUnitOfWork: true
+            method:
+              beanType: "TargetsSplitter"
+              method: "split"
+            steps:
+              - setProperty:
+                  name: target
+                  simple: ${body}
+              - transform:
+                  datasonnet:
+                    outputMediaType: application/x-java-object
+                    resultType: java.util.Map
+                    bodyMediaType: application/x-java-object
+                    expression: resource:classpath:datasonnet/orgUnitGroupSet.ds
+              - toD: ${exchangeProperty.target['endpointUri']}

@@ -1,0 +1,24 @@
+# camel-k: dependency=mvn:org.apache.activemq:artemis-jakarta-server:2.38.0
+
+# set up an error handler policy to capture failed synchronisations in a dead letter queue
+- routeConfiguration:
+    id: deadLetterQueueRouteConfig
+    errorHandler:
+      deadLetterChannel:
+        redeliveryPolicy:
+          redeliveryDelay: 5000
+          maximumRedeliveries: 3
+        deadLetterUri: jms:queue:DLQ
+        useOriginalMessage: true
+        onPrepareFailureRef: "#class:DeadLetterQueueProcessor"
+
+# configure the data source to the source DHIS2 database
+- beans:
+    - name: dataSource
+      properties:
+        databaseName: "{{source.dhis2DatabaseDbName}}"
+        user: "{{source.dhis2DatabaseUser}}"
+        password: "{{source.dhis2DatabasePassword}}"
+        portNumber: "{{source.dhis2DatabasePort}}"
+        serverName: "{{source.dhis2DatabaseHostname}}"
+      type: org.postgresql.ds.PGSimpleDataSource

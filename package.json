@@ -1,0 +1,13 @@
+{
+  "name": "reference-org-unit-sync",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/dhis2/reference-org-unit-sync.git",
+  "author": "cjmamo <823038+cjmamo@users.noreply.github.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.51.1",
+    "@types/node": "^22.14.0"
+  },
+  "scripts": {}
+}
