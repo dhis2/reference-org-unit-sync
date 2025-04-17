@@ -1,6 +1,4 @@
-# camel-k: dependency=mvn:org.apache.activemq:artemis-jakarta-server:2.38.0
-
-# set up an error handler policy to capture failed synchronisations in a dead letter queue
+# sets up an error handler policy to capture failed synchronisations in a dead letter queue
 - routeConfiguration:
     id: deadLetterQueueRouteConfig
     errorHandler:
@@ -12,7 +10,7 @@
         useOriginalMessage: true
         onPrepareFailureRef: "#class:DeadLetterQueueProcessor"
 
-# configure the data source to the source DHIS2 database
+# configures the data source to the source DHIS2 database
 - beans:
     - name: dataSource
       properties:

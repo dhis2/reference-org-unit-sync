@@ -1,6 +1,6 @@
-// implement here your org unit transformation for the target
+// customise here your org unit transformation for the target
 {
   "organisationUnits": [
-    cml.exchangeProperty('orgUnit')
+    cml.variable('orgUnit')
   ]
 }

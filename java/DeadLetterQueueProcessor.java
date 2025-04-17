@@ -1,5 +1,3 @@
-//DEPS org.hisp.dhis.integration.sdk:dhis2-java-sdk:3.0.1
-
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.spi.MaskingFormatter;

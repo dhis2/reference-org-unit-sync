@@ -1,0 +1,48 @@
+# fetches the changed organisation unit from the DHIS2 Web API
+- route:
+    id: syncOrgUnitRoute
+#    routeConfigurationId: deadLetterQueueRouteConfig
+    logMask: true
+    from:
+      uri: direct:syncOrgUnit
+      steps:
+        - setVariable:
+            name: id
+            simple: ${body}
+        - choice:
+            when:
+              - simple: ${headers.DebeziumOperation} != 'd'
+                steps:
+                  - toD:
+                      uri: dhis2://get/resource
+                      parameters:
+                        path: organisationUnits/${variables.id}
+                        fields: "*"
+                        baseApiUrl: ${properties:source.dhis2ApiUrl}
+                        username: ${properties:source.dhis2ApiUsername:}
+                        password: ${properties:source.dhis2ApiPassword:}
+                        personalAccessToken: ${properties:source.dhis2ApiPersonalAccessToken:}
+                  - unmarshal:
+                      json: { }
+                  - setVariable:
+                      name: orgUnit
+                      simple: ${body}
+        - log:
+            loggingLevel: INFO
+            message: "Syncing org unit [${variables.id}]..."
+        - split:
+            shareUnitOfWork: true
+            method:
+              beanType: "TargetsSplitter"
+              method: "split"
+            steps:
+              - setVariable:
+                  name: target
+                  simple: ${body}
+              - transform:
+                  datasonnet:
+                    outputMediaType: application/x-java-object
+                    resultType: java.util.Map
+                    bodyMediaType: application/x-java-object
+                    expression: resource:classpath:datasonnet/orgUnit.ds
+              - toD: ${variables.target['endpointUri']}

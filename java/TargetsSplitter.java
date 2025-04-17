@@ -24,19 +24,18 @@ public class TargetsSplitter {
                 int index = Integer.parseInt(matcher.group(PROPERTY_INDEX));
                 Map<String, String> target = targetsByIndex.getOrDefault(index, new HashMap<>());
                 target.put(matcher.group(PROPERTY_VALUE), (String) property.getValue());
+                target.putIfAbsent("index", String.valueOf(index));
                 targetsByIndex.put(index, target);
             }
         }
 
-        List<Map<String, String>> targets = targetsByIndex.values().stream().collect(Collectors.toList());
+        List<Map<String, String>> targets = new ArrayList<>(targetsByIndex.values());
         for (Map<String, String> target : targets) {
             target.putIfAbsent("idScheme", "uid");
             target.putIfAbsent("endpointUri", "direct:dhis2Target");
+            target.putIfAbsent("fieldsRequireApproval", "");
         }
 
         return targets;
     }
-
-
 }
-
