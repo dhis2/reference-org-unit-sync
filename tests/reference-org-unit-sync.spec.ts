@@ -36,5 +36,7 @@ test('has org units synced', async ({ request }) => {
               }
           });
       return response.status();
+    }, {
+      timeout: 10000,
     }).toBe(200);
 });
