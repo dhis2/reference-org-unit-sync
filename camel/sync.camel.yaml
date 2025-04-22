@@ -1,0 +1,21 @@
+# selects the synchronisation operation to perform based on the source table
+- route:
+    id: syncChangeRoute
+    routeConfigurationId: deadLetterQueueRouteConfig
+    logMask: true
+    from:
+      uri: jms:queue:delta/sync/1.0.0
+      parameters:
+        transacted: true
+      steps:
+        - choice:
+            when:
+              - simple: "${headers.DebeziumIdentifier} == 'dhis2.public.organisationunit'"
+                steps:
+                  - to: direct:syncOrgUnit
+              - simple: "${headers.DebeziumOperation} != 'd' && ${headers.DebeziumIdentifier} == 'dhis2.public.orgunitgroup'"
+                steps:
+                  - to: direct:syncOrgUnitGroup
+              - simple: "${headers.DebeziumOperation} != 'd' && ${headers.DebeziumIdentifier} == 'dhis2.public.orgunitgroupset'"
+                steps:
+                  - to: direct:syncOrgUnitGroupSet

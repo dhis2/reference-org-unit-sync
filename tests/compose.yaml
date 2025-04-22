@@ -4,15 +4,6 @@ networks:
   anotherTargetDb:
 
 services:
-  artemis:
-    image: apache/activemq-artemis:2.38.0
-    ports:
-      - "8161:8161"
-      - "61616:61616"
-      - "5672:5672"
-    environment:
-      ANONYMOUS_LOGIN: true
-
   sourceDb:
     image: postgis/postgis:13-3.4-alpine
     ports:
@@ -27,8 +18,8 @@ services:
     healthcheck:
       test: [ "CMD-SHELL", "psql --no-password --quiet --username $$POSTGRES_USER postgres://127.0.0.1/$$POSTGRES_DB -p 5432 --command \"SELECT 'ok'\" > /dev/null" ]
       start_period: 120s
-      interval: 1s
-      timeout: 3s
+      interval: 30s
+      timeout: 5s
       retries: 5
     networks:
       - sourceDb
@@ -44,8 +35,8 @@ services:
     healthcheck:
       test: [ "CMD-SHELL", "psql --no-password --quiet --username $$POSTGRES_USER postgres://127.0.0.1/$$POSTGRES_DB -p 5432 --command \"SELECT 'ok'\" > /dev/null" ]
       start_period: 120s
-      interval: 1s
-      timeout: 3s
+      interval: 30s
+      timeout: 5s
       retries: 5
     networks:
       - targetDb
@@ -61,8 +52,8 @@ services:
     healthcheck:
       test: [ "CMD-SHELL", "psql --no-password --quiet --username $$POSTGRES_USER postgres://127.0.0.1/$$POSTGRES_DB -p 5432 --command \"SELECT 'ok'\" > /dev/null" ]
       start_period: 120s
-      interval: 1s
-      timeout: 3s
+      interval: 30s
+      timeout: 5s
       retries: 5
     networks:
       - anotherTargetDb
@@ -80,9 +71,18 @@ services:
     healthcheck:
       test: [ "CMD-SHELL", "wget -q -S -O /dev/null http://127.0.0.1:8080/dhis-web-commons/security/login.action 2>&1| grep -q 'HTTP.*200'" ]
       start_period: 120s
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
+    networks:
+      - sourceDb
+
+  orgUnitDbReplicateIdentity:
+    image: alpine/psql:17.4
+    command: postgres://dhis:dhis@sourceDb:5432/dhis2 -c "ALTER TABLE public.organisationunit REPLICA IDENTITY FULL;"
+    depends_on:
+      sourceDhis2:
+        condition: service_healthy
     networks:
       - sourceDb
 
@@ -99,7 +99,7 @@ services:
     healthcheck:
       test: [ "CMD-SHELL", "wget -q -S -O /dev/null http://127.0.0.1:8080/dhis-web-commons/security/login.action 2>&1| grep -q 'HTTP.*200'" ]
       start_period: 120s
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
     networks:
@@ -118,7 +118,7 @@ services:
     healthcheck:
       test: [ "CMD-SHELL", "wget -q -S -O /dev/null http://127.0.0.1:8080/dhis-web-commons/security/login.action 2>&1| grep -q 'HTTP.*200'" ]
       start_period: 120s
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
     networks:

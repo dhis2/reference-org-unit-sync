@@ -1,0 +1,81 @@
+# synchronises the change with the target server
+- route:
+    id: dhis2TargetRoute
+    routeConfigurationId: deadLetterQueueRouteConfig
+    logMask: true
+    from:
+      uri: direct:dhis2Target
+      steps:
+        - choice:
+            when:
+              - groovy: |
+                  fieldsRequireApproval = variables.target.fieldsRequireApproval.split(',') as List
+                  updatedApprovalFields = fieldsRequireApproval.intersect(headers.DebeziumDiff.split(',') as List)
+                  exchange.setVariable('updatedApprovalFields', updatedApprovalFields)
+                  return !updatedApprovalFields.isEmpty()
+                steps:
+                  - to: direct:sendSyncApprovalRequest
+            otherwise:
+              steps:
+                - to: direct:syncDhis2Resource
+
+- route:
+    id: syncDhis2ResourceRoute
+    routeConfigurationId: deadLetterQueueRouteConfig
+    logMask: true
+    from:
+      uri: direct:syncDhis2Resource
+      steps:
+        - choice:
+            when:
+              - simple: ${headers.DebeziumOperation} == 'd'
+                steps:
+                  - doTry:
+                      steps:
+                        - toD:
+                            uri: dhis2:delete/resource
+                            parameters:
+                              path: "organisationUnits/${variables.id}"
+                              baseApiUrl: ${variables.target['dhis2ApiUrl']}
+                              username: ${variables.target['dhis2ApiUsername']}
+                              password: ${variables.target['dhis2ApiPassword']}
+                              personalAccessToken: ${variables.target['personalAccessToken']}
+                        - log:
+                            loggingLevel: INFO
+                            message: Synced deleted org unit [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]
+                        - doCatch:
+                            exception:
+                              - org.hisp.dhis.integration.sdk.api.RemoteDhis2ClientException
+                            onWhen:
+                              simple: ${exception.cause.httpStatusCode} == 404
+                            steps:
+                              - log:
+                                  loggingLevel: ERROR
+                                  message: Deleted org unit [${variables.id}] not found on target server [${variables.target['dhis2ApiUrl']}]
+            otherwise:
+              steps:
+                - setHeader:
+                    name: CamelDhis2.queryParams
+                    groovy: "['importStrategy': 'CREATE_AND_UPDATE', 'idScheme': variables.target['idScheme']]"
+                - toD:
+                    uri: dhis2://post/resource
+                    parameters:
+                      path: metadata
+                      baseApiUrl: ${variables.target['dhis2ApiUrl']}
+                      username: ${variables.target['dhis2ApiUsername']}
+                      password: ${variables.target['dhis2ApiPassword']}
+                      personalAccessToken: ${variables.target['personalAccessToken']}
+                - unmarshal:
+                    json: { }
+                - choice:
+                    when:
+                      - simple: "${body['status']} == 'SUCCESS' || ${body['status']}  == 'OK'"
+                        steps:
+                          - log:
+                              message: Successfully synced resource [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]
+                              loggingLevel: INFO
+                    otherwise:
+                      steps:
+                        - throwException:
+                            message: "Error while syncing resource [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]: ${body}"
+                            exceptionType: java.lang.Exception

@@ -1,6 +1,6 @@
-// implement here your org unit group set transformation for the target
+// customise here your org unit group set transformation for the target
 {
   "organisationUnitGroupSets": [
-    cml.exchangeProperty('orgUnitGroupSet')
+    cml.variable('orgUnitGroupSet')
   ]
 }

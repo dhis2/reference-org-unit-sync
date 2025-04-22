@@ -1,0 +1,131 @@
+# replace this bare-bones approval workflow with your own workflow solution
+- dataFormats:
+    - crypto:
+        keyRef: secretKey
+        cryptoProvider: "BC"
+        algorithm: AES
+        id: cryptoDataFormat
+
+- route:
+    id: approveSyncRoute
+    logMask: true
+    from:
+      uri: "platform-http:/approve"
+      parameters:
+        httpMethodRestrict: GET
+      steps:
+        - to: direct:decryptQueryParams
+        - to: jms:queue:approved/sync/1.0.0?exchangePattern=InOnly
+        - setBody:
+            constant: Processing...
+
+- route:
+    id: syncApprovedRoute
+    routeConfigurationId: deadLetterQueueRouteConfig
+    logMask: true
+    from:
+      uri: jms:queue:approved/sync/1.0.0
+      parameters:
+        transacted: true
+      steps:
+        - setVariable:
+            name: id
+            simple: ${headers.resourceId}
+        - setVariable:
+            name: target
+            groovy: |
+              [
+                'dhis2ApiUrl': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.dhis2ApiUrl').get(),
+                'dhis2ApiUsername': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.dhis2ApiUsername').get(),
+                'dhis2ApiPassword': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.dhis2ApiPassword').get(),
+                'idScheme': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.idScheme').orElse('uid')
+              ]
+        - toD:
+            uri: dhis2://get/resource
+            parameters:
+              path: dataStore/org-unit-sync/${variables.dataStoreKey}
+              baseApiUrl: ${variables.target['dhis2ApiUrl']}
+              username: ${variables.target['dhis2ApiUsername']}
+              password: ${variables.target['dhis2ApiPassword']}
+              personalAccessToken: ${variables.target['personalAccessToken']}
+        - convertBodyTo: String
+        - to: direct:syncDhis2Resource
+
+# saves the org unit to the target DHIS2 data store for review and editing before creating a ticket on the same DHIS2 instance
+- route:
+    id: sendSyncApprovalRequestRoute
+    routeConfigurationId: deadLetterQueueRouteConfig
+    logMask: true
+    from:
+      uri: direct:sendSyncApprovalRequest
+      steps:
+        - setVariable:
+            name: dataStoreKey
+            simple: ${uuid}
+        - toD:
+            uri: dhis2://put/resource
+            parameters:
+              path: dataStore/org-unit-sync/${variables.dataStoreKey}
+              baseApiUrl: ${variables.target['dhis2ApiUrl']}
+              username: ${variables.target['dhis2ApiUsername']}
+              password: ${variables.target['dhis2ApiPassword']}
+              personalAccessToken: ${variables.target['personalAccessToken']}
+        - to:
+            uri: direct:encryptQueryParams
+            variableReceive: dataQueryParam
+        - setVariable:
+            name: camelJbangPlatformHttpPort
+            constant: "{{camel.jbang.platform-http.port}}"
+        - setVariable:
+            name: hostname
+            simple: ${hostname}
+        - to: freemarker:ticketBody.ftl
+        - setHeader:
+            name: CamelDhis2.queryParams
+            groovy: "['subject': 'Org Unit Sync Approval Request']"
+        - toD:
+            uri: dhis2://post/resource
+            parameters:
+              path: messageConversations/feedback
+              baseApiUrl: ${variables.target['dhis2ApiUrl']}
+              username: ${variables.target['dhis2ApiUsername']}
+              password: ${variables.target['dhis2ApiPassword']}
+              personalAccessToken: ${variables.target['personalAccessToken']}
+
+- route:
+    routeConfigurationId: deadLetterQueueRouteConfig
+    logMask: true
+    from:
+      uri: direct:encryptQueryParams
+      steps:
+        - setBody:
+            simple: dataStoreKey=${variables.dataStoreKey}&targetIndex=${variables.target['index']}&resourceId=${variables.id}&operation=${headers.DebeziumOperation}
+        - marshal:
+            custom:
+              ref: cryptoDataFormat
+        - marshal:
+            base64:
+              urlSafe: true
+              lineSeparator: ":"
+        - convertBodyTo: String
+
+- route:
+    routeConfigurationId: deadLetterQueueRouteConfig
+    logMask: true
+    from:
+      uri: direct:decryptQueryParams
+      steps:
+        - setBody:
+            simple: ${headers.data}
+        - unmarshal:
+            base64:
+              lineSeparator: ":"
+        - unmarshal:
+            custom:
+              ref: cryptoDataFormat
+        - convertBodyTo: String
+        - transform:
+            groovy: |
+              body.split('&').each { q ->
+                request.setHeader(q.take(q.indexOf('=')), q.drop(q.indexOf('=') + 1))
+              }

@@ -1,36 +1,38 @@
+# fetches the changed organisation unit group from the DHIS2 Web API
 - route:
-    id: syncOrgUnitGroupCreateOrUpdateRoute
+    id: syncOrgUnitGroupRoute
     routeConfigurationId: deadLetterQueueRouteConfig
     logMask: true
     from:
-      uri: direct:syncOrgUnitGroupCreateOrUpdate
+      uri: direct:syncOrgUnitGroup
       steps:
-        - setProperty:
+        - setVariable:
             name: id
             simple: ${body}
         - toD:
-            uri: dhis2:get/resource
+            uri: dhis2://get/resource
             parameters:
-              path: "organisationUnitGroups/${exchangeProperty.id}"
+              path: organisationUnitGroups/${variables.id}
               fields: "*"
-              username: "{{source.dhis2ApiUsername}}"
-              password: "{{source.dhis2ApiPassword}}"
-              baseApiUrl: "{{source.dhis2ApiUrl}}"
+              baseApiUrl: ${properties:source.dhis2ApiUrl}
+              username: ${properties:source.dhis2ApiUsername:}
+              password: ${properties:source.dhis2ApiPassword:}
+              personalAccessToken: ${properties:source.dhis2ApiPersonalAccessToken:}
         - unmarshal:
             json: { }
-        - setProperty:
+        - setVariable:
             name: orgUnitGroup
             simple: ${body}
         - log:
             loggingLevel: INFO
-            message: "Syncing create/update for org unit group [${exchangeProperty.id}]..."
+            message: "Syncing create/update for org unit group [${variables.id}]..."
         - split:
             shareUnitOfWork: true
             method:
               beanType: "TargetsSplitter"
               method: "split"
             steps:
-              - setProperty:
+              - setVariable:
                   name: target
                   simple: ${body}
               - transform:
@@ -39,4 +41,4 @@
                     resultType: java.util.Map
                     bodyMediaType: application/x-java-object
                     expression: resource:classpath:datasonnet/orgUnitGroup.ds
-              - toD: ${exchangeProperty.target['endpointUri']}
+              - toD: ${variable.target['endpointUri']}

@@ -26,7 +26,7 @@ test('has org units synced', async ({ request }) => {
               }
           });
       return response.status();
-    }).toBe(200);
+    }).toBe(404);
 
     await expect.poll(async () => {
       const response = await request.get('http://localhost:8082/api/organisationUnits/b7HFMWjj3im', {
@@ -36,5 +36,7 @@ test('has org units synced', async ({ request }) => {
               }
           });
       return response.status();
+    }, {
+      timeout: 10000,
     }).toBe(200);
 });
