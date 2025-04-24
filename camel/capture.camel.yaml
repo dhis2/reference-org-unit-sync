@@ -14,25 +14,28 @@
         databaseUser: "{{source.dhis2DatabaseUser}}"
         databasePassword: "{{source.dhis2DatabasePassword}}"
         databaseDbname: "{{source.dhis2DatabaseDbName}}"
-        offsetStorageFileName: data/offset.dat
+        offsetStorageFileName: "{{source.offsetStorageFileName:data/offset.dat}}"
         topicPrefix: dhis2
         pluginName: pgoutput
         tableIncludeList: "{{source.tableIncludeList:public.organisationunit,public.orgunitgroup,public.orgunitgroupset}}"
         columnIncludeList: ".*"
-        schemaIncludeList: public
+        schemaIncludeList: "{{source.schemaIncludeList:public}}"
         slotName: slot1
+        snapshotMode: "{{source.snapshotMode:no_data}}"
       steps:
         - log:
             loggingLevel: INFO
             message: "Capturing database change [${headers}]..."
         - setHeader:
             description: |
-              Copies the header while omitting the reserved `Camel` prefix from the new header name so that the header is added to the JMS message.
+              Copies the header while omitting the reserved `Camel` prefix from the new header name so that the header 
+              is added to the JMS message.
             name: DebeziumOperation
             header: CamelDebeziumOperation
         - setHeader:
             description: |
-              Copies the header while omitting the reserved `Camel` prefix from the new header name so that the header is added to the JMS message.
+              Copies the header while omitting the reserved `Camel` prefix from the new header name so that the header 
+              is added to the JMS message.
             name: DebeziumIdentifier
             header: CamelDebeziumIdentifier
         - setHeader:
@@ -47,4 +50,4 @@
               Falls back to the pre-change row UID in case the post-change row UID does not exist. Typically this means 
               that the row was deleted.
             groovy: "body?.get('uid') ?: headers.CamelDebeziumBefore.get('uid')"
-        - to: jms:queue:delta/sync/1.0.0
+        - to: jms:queue:delta/sync/1

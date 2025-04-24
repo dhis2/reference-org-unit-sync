@@ -1,7 +1,7 @@
 # fetches the changed organisation unit from the DHIS2 Web API
 - route:
     id: syncOrgUnitRoute
-#    routeConfigurationId: deadLetterQueueRouteConfig
+    routeConfigurationId: deadLetterQueueRouteConfig
     logMask: true
     from:
       uri: direct:syncOrgUnit
@@ -14,7 +14,7 @@
               - simple: ${headers.DebeziumOperation} != 'd'
                 steps:
                   - toD:
-                      uri: dhis2://get/resource
+                      uri: dhis2:get/resource
                       parameters:
                         path: organisationUnits/${variables.id}
                         fields: "*"

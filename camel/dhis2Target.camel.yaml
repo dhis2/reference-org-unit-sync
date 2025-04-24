@@ -6,13 +6,17 @@
     from:
       uri: direct:dhis2Target
       steps:
+        - transform:
+            groovy: |
+              camelContext.resolveLanguage('jq').createExpression(variables.target.transform).evaluate(exchange, String.class)
         - choice:
             when:
               - groovy: |
+                  if (variables.isApproved) return false
                   fieldsRequireApproval = variables.target.fieldsRequireApproval.split(',') as List
                   updatedApprovalFields = fieldsRequireApproval.intersect(headers.DebeziumDiff.split(',') as List)
                   exchange.setVariable('updatedApprovalFields', updatedApprovalFields)
-                  return !updatedApprovalFields.isEmpty()
+                  !updatedApprovalFields.isEmpty()
                 steps:
                   - to: direct:sendSyncApprovalRequest
             otherwise:
@@ -43,6 +47,7 @@
                         - log:
                             loggingLevel: INFO
                             message: Synced deleted org unit [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]
+                        - to: direct:reportSuccess
                         - doCatch:
                             exception:
                               - org.hisp.dhis.integration.sdk.api.RemoteDhis2ClientException
@@ -52,19 +57,21 @@
                               - log:
                                   loggingLevel: ERROR
                                   message: Deleted org unit [${variables.id}] not found on target server [${variables.target['dhis2ApiUrl']}]
+
             otherwise:
               steps:
                 - setHeader:
                     name: CamelDhis2.queryParams
                     groovy: "['importStrategy': 'CREATE_AND_UPDATE', 'idScheme': variables.target['idScheme']]"
                 - toD:
-                    uri: dhis2://post/resource
+                    uri: dhis2:post/resource
                     parameters:
                       path: metadata
                       baseApiUrl: ${variables.target['dhis2ApiUrl']}
                       username: ${variables.target['dhis2ApiUsername']}
                       password: ${variables.target['dhis2ApiPassword']}
                       personalAccessToken: ${variables.target['personalAccessToken']}
+                - removeHeader: CamelDhis2.queryParams
                 - unmarshal:
                     json: { }
                 - choice:
@@ -74,8 +81,44 @@
                           - log:
                               message: Successfully synced resource [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]
                               loggingLevel: INFO
+                          - to: direct:reportSuccess
                     otherwise:
                       steps:
+                        - to: direct:reportFailure
                         - throwException:
                             message: "Error while syncing resource [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]: ${body}"
                             exceptionType: java.lang.Exception
+
+- route:
+    id: reportSuccessRoute
+    routeConfigurationId: deadLetterQueueRouteConfig
+    logMask: true
+    from:
+      uri: direct:reportSuccess
+      steps:
+        - to: freemarker:messageBodySuccess.json.ftl
+        - toD:
+            uri: dhis2:post/resource
+            parameters:
+              path: messageConversations
+              baseApiUrl: ${variables.target['dhis2ApiUrl']}
+              username: ${variables.target['dhis2ApiUsername']}
+              password: ${variables.target['dhis2ApiPassword']}
+              personalAccessToken: ${variables.target['personalAccessToken']}
+
+- route:
+    id: reportFailureRoute
+    routeConfigurationId: deadLetterQueueRouteConfig
+    logMask: true
+    from:
+      uri: direct:reportFailure
+      steps:
+        - to: freemarker:messageBodyFailure.json.ftl
+        - toD:
+            uri: dhis2:post/resource
+            parameters:
+              path: messageConversations
+              baseApiUrl: ${variables.target['dhis2ApiUrl']}
+              username: ${variables.target['dhis2ApiUsername']}
+              password: ${variables.target['dhis2ApiPassword']}
+              personalAccessToken: ${variables.target['personalAccessToken']}

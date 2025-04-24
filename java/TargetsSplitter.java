@@ -4,11 +4,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import org.apache.camel.Exchange;
 
 public class TargetsSplitter {
+
+    public static final String ADMIN_DHIS2_USER_ID = "M5zQapPyTZI";
+    public static final String IDENTITY_JQ_PATH_EXPRESSION = ".";
+    public static final String DHIS2_ENDPOINT_URI = "direct:dhis2Target";
+    public static final String IMPORT_UID_SCHEME = "uid";
 
     private static final Pattern TARGET_PROPERTY_PATTERN = Pattern.compile("^target\\.([\\d]+)\\.(.+)");
     private static final int PROPERTY_INDEX = 1;
@@ -31,9 +35,11 @@ public class TargetsSplitter {
 
         List<Map<String, String>> targets = new ArrayList<>(targetsByIndex.values());
         for (Map<String, String> target : targets) {
-            target.putIfAbsent("idScheme", "uid");
-            target.putIfAbsent("endpointUri", "direct:dhis2Target");
+            target.putIfAbsent("idScheme", IMPORT_UID_SCHEME);
+            target.putIfAbsent("endpointUri", DHIS2_ENDPOINT_URI);
             target.putIfAbsent("fieldsRequireApproval", "");
+            target.putIfAbsent("transform", IDENTITY_JQ_PATH_EXPRESSION);
+            target.putIfAbsent("messageConversationUserId", ADMIN_DHIS2_USER_ID);
         }
 
         return targets;
