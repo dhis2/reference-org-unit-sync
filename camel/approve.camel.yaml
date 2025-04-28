@@ -1,4 +1,5 @@
 # replace this bare-bones approval workflow with your own workflow solution
+
 - dataFormats:
     - crypto:
         keyRef: secretKey
@@ -8,23 +9,27 @@
 
 - route:
     id: approveSyncRoute
+    description: Listens for HTTP requests that approve synchronisations, and pushes them onto a queue.
     logMask: true
     from:
       uri: "platform-http:/approve"
       parameters:
         httpMethodRestrict: GET
       steps:
-        - to: direct:decryptQueryParams
-        - to: jms:queue:approved/sync/1.0.0?exchangePattern=InOnly
+        - to:
+            description: Get the decrypted query parameters.
+            uri: direct:decryptQueryParams
+        - to: jms:queue:approved/sync/1?exchangePattern=InOnly
         - setBody:
             constant: Processing...
 
 - route:
     id: syncApprovedRoute
+    description: Dequeues the approval message and unpacks its data before completing the synchronisation.
     routeConfigurationId: deadLetterQueueRouteConfig
     logMask: true
     from:
-      uri: jms:queue:approved/sync/1.0.0
+      uri: jms:queue:approved/sync/1
       parameters:
         transacted: true
       steps:
@@ -32,38 +37,69 @@
             name: id
             simple: ${headers.resourceId}
         - setVariable:
+            description: Reconstructs all the parameters required for synchronisation.
             name: target
             groovy: |
               [
                 'dhis2ApiUrl': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.dhis2ApiUrl').get(),
-                'dhis2ApiUsername': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.dhis2ApiUsername').get(),
-                'dhis2ApiPassword': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.dhis2ApiPassword').get(),
-                'idScheme': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.idScheme').orElse('uid')
+                'dhis2ApiUsername': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.dhis2ApiUsername').orElse(null),
+                'dhis2ApiPassword': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.dhis2ApiPassword').orElse(null),
+                'dhis2ApiPersonalAccessToken': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.dhis2ApiPersonalAccessToken').orElse(null),
+                'idScheme': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.idScheme').orElse(TargetsSplitter.IMPORT_UID_SCHEME),
+                'endpointUri': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.endpointUri').orElse(TargetsSplitter.DHIS2_ENDPOINT_URI),
+                'transform': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.transform').orElse(TargetsSplitter.JQ_IDENTITY_PATH_EXPRESSION),
+                'messageConversationUserId': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.messageConversationUserId').orElse(TargetsSplitter.ADMIN_DHIS2_USER_ID)
               ]
         - toD:
-            uri: dhis2://get/resource
+            description: Fetches the draft metadata import from the target DHIS2 data store.
+            uri: dhis2:get/resource
             parameters:
               path: dataStore/org-unit-sync/${variables.dataStoreKey}
               baseApiUrl: ${variables.target['dhis2ApiUrl']}
               username: ${variables.target['dhis2ApiUsername']}
               password: ${variables.target['dhis2ApiPassword']}
               personalAccessToken: ${variables.target['personalAccessToken']}
-        - convertBodyTo: String
-        - to: direct:syncDhis2Resource
+        - convertBodyTo:
+            description: Convert the stream into a string.
+            type: String
+        - setVariable:
+            description: Flag the message as approved so that it does not repeat the approval workflow.
+            name: isApproved
+            constant: "true"
+        - toD:
+            description: Synchronise the resource on the target server.
+            uri: ${variables.target['endpointUri']}
+        - setBody:
+            description: Remove any left-over data in the body before creating a fresh HTTP request.
+            simple: ${null}
+        - toD:
+            description: | 
+              Delete the draft metadata import from the target DHIS2 data store to avoid the synchronisation from being 
+              accidentally re-approved.
+            uri: dhis2:delete/resource
+            parameters:
+              path: dataStore/org-unit-sync/${variables.dataStoreKey}
+              baseApiUrl: ${variables.target['dhis2ApiUrl']}
+              username: ${variables.target['dhis2ApiUsername']}
+              password: ${variables.target['dhis2ApiPassword']}
+              personalAccessToken: ${variables.target['personalAccessToken']}
 
 # saves the org unit to the target DHIS2 data store for review and editing before creating a ticket on the same DHIS2 instance
 - route:
     id: sendSyncApprovalRequestRoute
+    description: Prepares the ticket body and opens a ticket on the target DHIS2 server.
     routeConfigurationId: deadLetterQueueRouteConfig
     logMask: true
     from:
       uri: direct:sendSyncApprovalRequest
       steps:
         - setVariable:
+            description: Sets a variable to a generated UUID that identifies the data store entry in the target DHIS2 server.
             name: dataStoreKey
             simple: ${uuid}
         - toD:
-            uri: dhis2://put/resource
+            description: Creates or updates the data store entry with the draft metadata import.
+            uri: dhis2:put/resource
             parameters:
               path: dataStore/org-unit-sync/${variables.dataStoreKey}
               baseApiUrl: ${variables.target['dhis2ApiUrl']}
@@ -71,45 +107,65 @@
               password: ${variables.target['dhis2ApiPassword']}
               personalAccessToken: ${variables.target['personalAccessToken']}
         - to:
+            description: Gets the encrypted query params for the approval link and stashes them in a variable.
             uri: direct:encryptQueryParams
             variableReceive: dataQueryParam
         - setVariable:
+            description: Sets a variable to the app's HTTP port number.
             name: camelJbangPlatformHttpPort
             constant: "{{camel.jbang.platform-http.port}}"
         - setVariable:
+            description: | 
+              Sets a variable to the app's user-defined hostname. If the user has not specified a hostname, then it 
+              attempts to resolve the hostname itself.
             name: hostname
-            simple: ${hostname}
-        - to: freemarker:ticketBody.ftl
+            groovy: camelContext.propertiesComponent.resolveProperty('hostname').orElse(org.apache.camel.util.InetAddressUtil.getLocalHostNameSafe())
+        - to:
+            description: Materialises a template to create the ticket body.
+            uri: freemarker:ticketBody.ftl
         - setHeader:
+            description: Sets the ticket subject.
             name: CamelDhis2.queryParams
-            groovy: "['subject': 'Org Unit Sync Approval Request']"
+            groovy: "['subject': '[Org Unit Sync App] Approval Request']"
         - toD:
-            uri: dhis2://post/resource
+            description: Opens a ticket on the DHIS2 target server.
+            uri: dhis2:post/resource
             parameters:
               path: messageConversations/feedback
               baseApiUrl: ${variables.target['dhis2ApiUrl']}
               username: ${variables.target['dhis2ApiUsername']}
               password: ${variables.target['dhis2ApiPassword']}
               personalAccessToken: ${variables.target['personalAccessToken']}
+        - log: Sent approval request for syncing resource [${variables.id}] to target server [${variables.target['dhis2ApiUrl']}]
 
 - route:
+    id: encryptQueryParamsRoute
+    description: Encrypts and Base64 encodes the approval link query params that will be included in the ticket.
     routeConfigurationId: deadLetterQueueRouteConfig
     logMask: true
     from:
       uri: direct:encryptQueryParams
       steps:
         - setBody:
-            simple: dataStoreKey=${variables.dataStoreKey}&targetIndex=${variables.target['index']}&resourceId=${variables.id}&operation=${headers.DebeziumOperation}
+            description: Concatenates all the query params to be present in the approval link.
+            simple: >
+              dataStoreKey=${variables.dataStoreKey}&targetIndex=${variables.target['index']}&resourceId=${variables.id}&DebeziumOperation=${headers.DebeziumOperation}&DebeziumDiff=${headers.DebeziumDiff}&DebeziumIdentifier=${headers.DebeziumIdentifier}
         - marshal:
+            description: Encrypts the query params.
             custom:
               ref: cryptoDataFormat
         - marshal:
+            description: Base64 encodes the encrypted query params.
             base64:
               urlSafe: true
               lineSeparator: ":"
-        - convertBodyTo: String
+        - convertBodyTo:
+            description: Convert the Base64 stream into a string.
+            type: String
 
 - route:
+    id: decryptQueryParamsRoute
+    description: Base64 decodes and decrypts the approval link query params.
     routeConfigurationId: deadLetterQueueRouteConfig
     logMask: true
     from:
@@ -118,13 +174,16 @@
         - setBody:
             simple: ${headers.data}
         - unmarshal:
+            description: Base64 decodes the encrypted query params.
             base64:
               lineSeparator: ":"
         - unmarshal:
+            description: Decrypts the query params.
             custom:
               ref: cryptoDataFormat
         - convertBodyTo: String
         - transform:
+            description: Splits the query params before adding them as headers.
             groovy: |
               body.split('&').each { q ->
                 request.setHeader(q.take(q.indexOf('=')), q.drop(q.indexOf('=') + 1))

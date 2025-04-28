@@ -4,7 +4,7 @@
     routeConfigurationId: deadLetterQueueRouteConfig
     logMask: true
     from:
-      uri: jms:queue:delta/sync/1.0.0
+      uri: jms:queue:delta/sync/1
       parameters:
         transacted: true
       steps:

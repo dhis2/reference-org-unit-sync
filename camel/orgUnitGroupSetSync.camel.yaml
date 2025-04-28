@@ -10,7 +10,7 @@
             name: id
             simple: ${body}
         - toD:
-            uri: dhis2://get/resource
+            uri: dhis2:get/resource
             parameters:
               path: organisationUnitGroupSets/${variables.id}
               fields: "*"
