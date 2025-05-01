@@ -12,6 +12,6 @@
 <#assign adminUserId = "M5zQapPyTZI"</#assign>
 
 {
-    "subject": "[Org Unit Sync App] Error while synchronising '${variables.id}' object in '${headers.DebeziumIdentifier}' table",
-    "text": "The '${variables.id}' object in the '${headers.DebeziumIdentifier}' table could not be ${op} because of a technical failure. Please contact tech support."
+    "subject": "[Org Unit Sync App] Error while synchronising '${variables.id}' object in '${headers.DebeziumSourceTable}' table",
+    "text": "The '${variables.id}' object in the '${headers.DebeziumSourceTable}' table could not be ${op} because of a technical failure. Please contact tech support."
 }

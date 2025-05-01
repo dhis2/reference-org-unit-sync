@@ -10,7 +10,6 @@ import org.apache.camel.Exchange;
 public class TargetsSplitter {
 
     public static final String ADMIN_DHIS2_USER_ID = "M5zQapPyTZI";
-    public static final String IDENTITY_JQ_PATH_EXPRESSION = ".";
     public static final String DHIS2_ENDPOINT_URI = "direct:dhis2Target";
     public static final String IMPORT_UID_SCHEME = "uid";
 
@@ -38,7 +37,6 @@ public class TargetsSplitter {
             target.putIfAbsent("idScheme", IMPORT_UID_SCHEME);
             target.putIfAbsent("endpointUri", DHIS2_ENDPOINT_URI);
             target.putIfAbsent("fieldsRequireApproval", "");
-            target.putIfAbsent("transform", IDENTITY_JQ_PATH_EXPRESSION);
             target.putIfAbsent("messageConversationUserId", ADMIN_DHIS2_USER_ID);
         }
 

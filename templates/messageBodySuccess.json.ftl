@@ -12,8 +12,8 @@
 <#assign adminUserId = "M5zQapPyTZI">
 
 {
-    "subject": "[Org Unit Sync App] Synchronised '${variables.id}' object in '${headers.DebeziumIdentifier}' table",
-    "text": "The '${variables.id}' object in the '${headers.DebeziumIdentifier}' table was synchronised. It had one or more of the following fields ${op}:\n\n${debeziumDiff}",
+    "subject": "[Org Unit Sync App] Synchronised '${variables.id}' object in '${headers.DebeziumSourceTable}' table",
+    "text": "The '${variables.id}' object in the '${headers.DebeziumSourceTable}' table was synchronised. It had one or more of the following fields ${op}:\n\n${debeziumDiff}",
     "users": [{
         "id": "${variables.target['messageConversationUserId']}"
     }]

@@ -77,9 +77,15 @@ services:
     networks:
       - sourceDb
 
-  orgUnitDbReplicateIdentity:
+  configureTableReplication:
     image: alpine/psql:17.4
-    command: postgres://dhis:dhis@sourceDb:5432/dhis2 -c "ALTER TABLE public.organisationunit REPLICA IDENTITY FULL;"
+    command: >
+      postgres://dhis:dhis@sourceDb:5432/dhis2  
+        -c "ALTER TABLE public.organisationunit REPLICA IDENTITY FULL"
+        -c "DROP USER IF EXISTS orgunitsyncapp"
+        -c "CREATE USER orgunitsyncapp WITH REPLICATION PASSWORD 'dhis'"
+        -c "DROP PUBLICATION IF EXISTS dbz_publication"
+        -c "CREATE PUBLICATION dbz_publication FOR TABLE organisationunit, orgunitgroup, orgunitgroupset"
     depends_on:
       sourceDhis2:
         condition: service_healthy

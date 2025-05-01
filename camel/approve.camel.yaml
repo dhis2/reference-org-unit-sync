@@ -10,7 +10,6 @@
 - route:
     id: approveSyncRoute
     description: Listens for HTTP requests that approve synchronisations, and pushes them onto a queue.
-    logMask: true
     from:
       uri: "platform-http:/approve"
       parameters:
@@ -27,7 +26,6 @@
     id: syncApprovedRoute
     description: Dequeues the approval message and unpacks its data before completing the synchronisation.
     routeConfigurationId: deadLetterQueueRouteConfig
-    logMask: true
     from:
       uri: jms:queue:approved/sync/1
       parameters:
@@ -47,7 +45,6 @@
                 'dhis2ApiPersonalAccessToken': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.dhis2ApiPersonalAccessToken').orElse(null),
                 'idScheme': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.idScheme').orElse(TargetsSplitter.IMPORT_UID_SCHEME),
                 'endpointUri': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.endpointUri').orElse(TargetsSplitter.DHIS2_ENDPOINT_URI),
-                'transform': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.transform').orElse(TargetsSplitter.JQ_IDENTITY_PATH_EXPRESSION),
                 'messageConversationUserId': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.messageConversationUserId').orElse(TargetsSplitter.ADMIN_DHIS2_USER_ID)
               ]
         - toD:
@@ -60,21 +57,21 @@
               password: ${variables.target['dhis2ApiPassword']}
               personalAccessToken: ${variables.target['personalAccessToken']}
         - convertBodyTo:
-            description: Convert the stream into a string.
+            description: Converts the stream into a string.
             type: String
         - setVariable:
-            description: Flag the message as approved so that it does not repeat the approval workflow.
+            description: Flags the message as approved so that it does not repeat the approval workflow.
             name: isApproved
             constant: "true"
         - toD:
             description: Synchronise the resource on the target server.
             uri: ${variables.target['endpointUri']}
         - setBody:
-            description: Remove any left-over data in the body before creating a fresh HTTP request.
+            description: Removes any left-over data in the body before creating a fresh HTTP request.
             simple: ${null}
         - toD:
             description: | 
-              Delete the draft metadata import from the target DHIS2 data store to avoid the synchronisation from being 
+              Deletes the draft metadata import from the target DHIS2 data store to avoid the synchronisation from being 
               accidentally re-approved.
             uri: dhis2:delete/resource
             parameters:
@@ -84,12 +81,12 @@
               password: ${variables.target['dhis2ApiPassword']}
               personalAccessToken: ${variables.target['personalAccessToken']}
 
-# saves the org unit to the target DHIS2 data store for review and editing before creating a ticket on the same DHIS2 instance
 - route:
     id: sendSyncApprovalRequestRoute
-    description: Prepares the ticket body and opens a ticket on the target DHIS2 server.
+    description: |
+      Saves the draft metadata import in the target DHIS2 data store and opens a ticket for approving the 
+      synchronisation.
     routeConfigurationId: deadLetterQueueRouteConfig
-    logMask: true
     from:
       uri: direct:sendSyncApprovalRequest
       steps:
@@ -122,7 +119,7 @@
             groovy: camelContext.propertiesComponent.resolveProperty('hostname').orElse(org.apache.camel.util.InetAddressUtil.getLocalHostNameSafe())
         - to:
             description: Materialises a template to create the ticket body.
-            uri: freemarker:ticketBody.ftl
+            uri: freemarker:templates/ticketBody.ftl
         - setHeader:
             description: Sets the ticket subject.
             name: CamelDhis2.queryParams
@@ -142,14 +139,13 @@
     id: encryptQueryParamsRoute
     description: Encrypts and Base64 encodes the approval link query params that will be included in the ticket.
     routeConfigurationId: deadLetterQueueRouteConfig
-    logMask: true
     from:
       uri: direct:encryptQueryParams
       steps:
         - setBody:
             description: Concatenates all the query params to be present in the approval link.
             simple: >
-              dataStoreKey=${variables.dataStoreKey}&targetIndex=${variables.target['index']}&resourceId=${variables.id}&DebeziumOperation=${headers.DebeziumOperation}&DebeziumDiff=${headers.DebeziumDiff}&DebeziumIdentifier=${headers.DebeziumIdentifier}
+              dataStoreKey=${variables.dataStoreKey}&targetIndex=${variables.target['index']}&resourceId=${variables.id}&DebeziumOperation=${headers.DebeziumOperation}&DebeziumDiff=${headers.DebeziumDiff}&DebeziumSourceTable=${headers.DebeziumSourceTable}
         - marshal:
             description: Encrypts the query params.
             custom:
@@ -160,14 +156,13 @@
               urlSafe: true
               lineSeparator: ":"
         - convertBodyTo:
-            description: Convert the Base64 stream into a string.
+            description: Converts the Base64 stream into a string.
             type: String
 
 - route:
     id: decryptQueryParamsRoute
     description: Base64 decodes and decrypts the approval link query params.
     routeConfigurationId: deadLetterQueueRouteConfig
-    logMask: true
     from:
       uri: direct:decryptQueryParams
       steps:
@@ -181,7 +176,9 @@
             description: Decrypts the query params.
             custom:
               ref: cryptoDataFormat
-        - convertBodyTo: String
+        - convertBodyTo:
+            description: Converts the binary stream into a string.
+            type: String
         - transform:
             description: Splits the query params before adding them as headers.
             groovy: |

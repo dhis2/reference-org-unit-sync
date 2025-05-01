@@ -1,103 +1,96 @@
-# synchronises the change with the target server
 - route:
     id: dhis2TargetRoute
+    description: Determines the type of synchronisation to be performed on the target server.
     routeConfigurationId: deadLetterQueueRouteConfig
-    logMask: true
     from:
       uri: direct:dhis2Target
-      steps:
-        - transform:
-            groovy: |
-              camelContext.resolveLanguage('jq').createExpression(variables.target.transform).evaluate(exchange, String.class)
-        - choice:
-            when:
-              - groovy: |
-                  if (variables.isApproved) return false
-                  fieldsRequireApproval = variables.target.fieldsRequireApproval.split(',') as List
-                  updatedApprovalFields = fieldsRequireApproval.intersect(headers.DebeziumDiff.split(',') as List)
-                  exchange.setVariable('updatedApprovalFields', updatedApprovalFields)
-                  !updatedApprovalFields.isEmpty()
-                steps:
-                  - to: direct:sendSyncApprovalRequest
-            otherwise:
-              steps:
-                - to: direct:syncDhis2Resource
-
-- route:
-    id: syncDhis2ResourceRoute
-    routeConfigurationId: deadLetterQueueRouteConfig
-    logMask: true
-    from:
-      uri: direct:syncDhis2Resource
       steps:
         - choice:
             when:
               - simple: ${headers.DebeziumOperation} == 'd'
                 steps:
-                  - doTry:
-                      steps:
-                        - toD:
-                            uri: dhis2:delete/resource
-                            parameters:
-                              path: "organisationUnits/${variables.id}"
-                              baseApiUrl: ${variables.target['dhis2ApiUrl']}
-                              username: ${variables.target['dhis2ApiUsername']}
-                              password: ${variables.target['dhis2ApiPassword']}
-                              personalAccessToken: ${variables.target['personalAccessToken']}
-                        - log:
-                            loggingLevel: INFO
-                            message: Synced deleted org unit [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]
-                        - to: direct:reportSuccess
-                        - doCatch:
-                            exception:
-                              - org.hisp.dhis.integration.sdk.api.RemoteDhis2ClientException
-                            onWhen:
-                              simple: ${exception.cause.httpStatusCode} == 404
-                            steps:
-                              - log:
-                                  loggingLevel: ERROR
-                                  message: Deleted org unit [${variables.id}] not found on target server [${variables.target['dhis2ApiUrl']}]
-
+                  - to: direct:deleteResource
             otherwise:
               steps:
-                - setHeader:
-                    name: CamelDhis2.queryParams
-                    groovy: "['importStrategy': 'CREATE_AND_UPDATE', 'idScheme': variables.target['idScheme']]"
-                - toD:
-                    uri: dhis2:post/resource
-                    parameters:
-                      path: metadata
-                      baseApiUrl: ${variables.target['dhis2ApiUrl']}
-                      username: ${variables.target['dhis2ApiUsername']}
-                      password: ${variables.target['dhis2ApiPassword']}
-                      personalAccessToken: ${variables.target['personalAccessToken']}
-                - removeHeader: CamelDhis2.queryParams
-                - unmarshal:
-                    json: { }
-                - choice:
-                    when:
-                      - simple: "${body['status']} == 'SUCCESS' || ${body['status']}  == 'OK'"
-                        steps:
-                          - log:
-                              message: Successfully synced resource [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]
-                              loggingLevel: INFO
-                          - to: direct:reportSuccess
-                    otherwise:
-                      steps:
-                        - to: direct:reportFailure
-                        - throwException:
-                            message: "Error while syncing resource [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]: ${body}"
-                            exceptionType: java.lang.Exception
+                - to: direct:importMetadata
+
+- route:
+    id: importMetadataRoute
+    description: Imports metadata to the target server.
+    routeConfigurationId: deadLetterQueueRouteConfig
+    from:
+      uri: direct:importMetadata
+      steps:
+        - setHeader:
+            name: CamelDhis2.queryParams
+            groovy: "['importStrategy': 'CREATE_AND_UPDATE', 'idScheme': variables.target.idScheme]"
+        - toD:
+            uri: dhis2:post/resource
+            parameters:
+              path: metadata
+              baseApiUrl: ${variables.target['dhis2ApiUrl']}
+              username: ${variables.target['dhis2ApiUsername']}
+              password: ${variables.target['dhis2ApiPassword']}
+              personalAccessToken: ${variables.target['personalAccessToken']}
+        - removeHeader: CamelDhis2.queryParams
+        - unmarshal:
+            json: { }
+        - choice:
+            when:
+              - simple: "${body['status']} == 'SUCCESS' || ${body['status']}  == 'OK'"
+                steps:
+                  - log: Successfully synced resource [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]
+                  - to: direct:reportSuccess
+            otherwise:
+              steps:
+                - to: direct:reportFailure
+                - throwException:
+                    message: "Error while syncing resource [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]: ${body}"
+                    exceptionType: java.lang.Exception
+
+- route:
+    id: deleteResourceRoute
+    description: Deletes an org unit on the target server.
+    routeConfigurationId: deadLetterQueueRouteConfig
+    from:
+      uri: direct:deleteResource
+      steps:
+        - doTry:
+            steps:
+              - toD:
+                  uri: dhis2:delete/resource
+                  parameters:
+                    path: "organisationUnits/${variables.id}"
+                    baseApiUrl: ${variables.target['dhis2ApiUrl']}
+                    username: ${variables.target['dhis2ApiUsername']}
+                    password: ${variables.target['dhis2ApiPassword']}
+                    personalAccessToken: ${variables.target['personalAccessToken']}
+              - log: Synced deleted org unit [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]
+              - to: direct:reportSuccess
+              - doCatch:
+                  exception:
+                    - org.hisp.dhis.integration.sdk.api.RemoteDhis2ClientException
+                  onWhen:
+                    simple: ${exception.cause.httpStatusCode} == 404
+                  steps:
+                    - log:
+                        loggingLevel: ERROR
+                        message: Deleted org unit [${variables.id}] not found on target server [${variables.target['dhis2ApiUrl']}]
 
 - route:
     id: reportSuccessRoute
+    description: |
+      Transmits a message to a user's inbox in the target DHIS2 server notifying them that a synchronisation succeeded. 
+      The DHIS2 user recipient is set from the `target.[n].messageConversationUserId` property.
     routeConfigurationId: deadLetterQueueRouteConfig
-    logMask: true
     from:
       uri: direct:reportSuccess
       steps:
-        - to: freemarker:messageBodySuccess.json.ftl
+        - to:
+            description: Materialises a template to create the success message.
+            uri: freemarker:templates/messageBodySuccess.json.ftl
         - toD:
+            description: Creates a message conversation containing the success message on the target DHIS2 server.
             uri: dhis2:post/resource
             parameters:
               path: messageConversations
@@ -105,16 +98,30 @@
               username: ${variables.target['dhis2ApiUsername']}
               password: ${variables.target['dhis2ApiPassword']}
               personalAccessToken: ${variables.target['personalAccessToken']}
+        - unmarshal:
+            json: { }
+        - choice:
+            when:
+              - simple: "${body['status']} != 'SUCCESS' && ${body['status']}  != 'OK'"
+                steps:
+                  - log:
+                      loggingLevel: ERROR
+                      message: "Error while reporting successful sync for resource [${variables.id}] to target server [${variables.target['dhis2ApiUrl']}]: ${body}"
 
 - route:
     id: reportFailureRoute
+    description: |
+      Transmits a message to a user's inbox in the target DHIS2 server notifying them that a synchronisation failed. The
+      DHIS2 user recipient is set from the `target.[n].messageConversationUserId` property.
     routeConfigurationId: deadLetterQueueRouteConfig
-    logMask: true
     from:
       uri: direct:reportFailure
       steps:
-        - to: freemarker:messageBodyFailure.json.ftl
+        - to:
+            description: Materialises a template to create the failure message.
+            uri: freemarker:templates/messageBodyFailure.json.ftl
         - toD:
+            description: Creates a message conversation containing the failure message on the target DHIS2 server.
             uri: dhis2:post/resource
             parameters:
               path: messageConversations
@@ -122,3 +129,12 @@
               username: ${variables.target['dhis2ApiUsername']}
               password: ${variables.target['dhis2ApiPassword']}
               personalAccessToken: ${variables.target['personalAccessToken']}
+        - unmarshal:
+            json: { }
+        - choice:
+            when:
+              - simple: "${body['status']} != 'SUCCESS' && ${body['status']}  != 'OK'"
+                steps:
+                  - log:
+                      loggingLevel: ERROR
+                      message: "Error while reporting failure sync for resource [${variables.id}] to target server [${variables.target['dhis2ApiUrl']}]: ${body}"
