@@ -100,7 +100,7 @@ It is strongly recommended to replace the embedded broker with a [standalone one
 
 ## Configuration
 
-The org unit sync application is configured through one or more properties files and/or command-line arguments. A template of the properties file is found in [`application.properties`](application.properties). The `application.properties` must be edited and tailored it to your needs before running the org unit sync app. At a minimum, you will need to specify the address details of the primary DHIS2 server and its database together with the address details of at least one target server as shown below:
+The org unit sync application is configured through one or more properties files and/or command-line arguments. A template of the properties file is found in [`application.properties`](application.properties). The `application.properties` must be edited and tailored to your needs before running the org unit sync app. At a minimum, you will need to specify the address details of the primary DHIS2 server and its database together with the address details of at least one target server as shown below:
 
 ```properties
 source.dhis2DatabaseHostname=192.178.1.6
@@ -171,7 +171,7 @@ target.2.dhis2ApiUsername=admin
 target.2.dhis2ApiPassword=district
 ```
 
-The subsequent table lists the properties that can be configured in the org unit sync app:
+The subsequent table lists the parameters that can be configured in the org unit sync app:
 
 |                **Parameter Name**                | **Description** |
 |:------------------------------------------------:|:---------------:|
@@ -236,7 +236,7 @@ Setting the `source.snapshotMode` parameter to `initial` will force the app to r
 
 ### Synchronisation replay
 
-A synchronisation fails when the app could not complete the operation in three attempts. A backoff multiplier increases the time between each attempt. After exhausting the allowed no. of retries, the app gives up and stores the failed synchronisation within the [broker](#broker)'s dead-letter queue named `DLQ`. Note that a failed synchronisation for a given target server will NOT cause the entire synchronisation process to abort. The application will jump to the next target server should it fail to synchronise the current target server.
+A synchronisation fails when the app could not complete the operation in three attempts. A backoff multiplier increases the time between each attempt. After exhausting the allowed number of retries, the app gives up and stores the failed synchronisation within the [broker](#broker)'s dead-letter queue named `DLQ`. Note that a failed synchronisation for a given target server will NOT cause the entire synchronisation process to abort. The application will jump to the next target server should it fail to synchronise the current target server.
 
 From the [Artemis management console](https://activemq.apache.org/components/artemis/documentation/latest/management-console.html), the system operator can view the `DLQ` queue to inspect the resource IDs together with metadata of failed synchronisations:
 
@@ -285,7 +285,7 @@ Despite the org unit sync app being geared towards synchronising DHIS2 targets, 
 
 ### Approval workflow
 
-Adapting the current approval workflow means changing the [`camel/approve.camel.yaml` file](camel/approve.camel.yaml). The reference implementation piggies back on DHIS2's data store and ticketing system to implement the approval workflow but it is more than likely that you would need to change the `dhis2` Camel endpoints in `approve.camel.yaml` such that they point to your own systems for storing draft metadata imports and creating tickets.
+Adapting the current approval workflow means changing the [`camel/approve.camel.yaml` file](camel/approve.camel.yaml). The reference implementation piggies back on DHIS2's data store and ticketing system to implement the approval workflow but it is more likely that you would need to change the `dhis2` Camel endpoints in the `camel/approve.camel.yaml` file such that they open tickets and save draft metadata imports in your bespoke solutions. Besides replacing the `dhis2` Camel endpoints, the `steps` within `approve.camel.yaml` might need to be modified to fit your approval workflow. Read the route and step descriptions within `approve.camel.yaml` to understand how the current workflow is orchestrated.
 
 ### Synchronised resources
 
