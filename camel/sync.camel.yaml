@@ -1,21 +1,92 @@
-# selects the synchronisation operation to perform based on the source table
 - route:
-    id: syncChangeRoute
+    id: consumeChangeRoute
+    description: Routes the captured change to the corresponding route.
     routeConfigurationId: deadLetterQueueRouteConfig
-    logMask: true
     from:
       uri: jms:queue:delta/sync/1
       parameters:
         transacted: true
       steps:
+        - toD:
+            description: |
+              Dynamically selects the route to send the captured change based on the name of the source table.
+            uri: direct:${headers.DebeziumSourceTable}
+
+- route:
+    id: syncChangeRoute
+    description: |
+      Pre-processes the metadata import payload, if it is not a delete operation, and sends the message to either one 
+      of following routes:
+        (a) a route responsible for implementing the sync approval workflow
+        (b) a route that executes the sync operation on the target DHIS2 server
+    routeConfigurationId: deadLetterQueueRouteConfig
+    from:
+      uri: direct:sync
+      steps:
+        - to: direct:map
         - choice:
+            description: |
+              Evaluates whether the sync should be manually approved according to the `target.[n].fieldsRequireApproval` 
+              property.
             when:
-              - simple: "${headers.DebeziumIdentifier} == 'dhis2.public.organisationunit'"
+              - groovy: |
+                  fieldsRequireApproval = variables.target.fieldsRequireApproval.split(',') as List
+                  updatedApprovalFields = fieldsRequireApproval.intersect(headers.DebeziumDiff.split(',') as List)
+                  exchange.setVariable('updatedApprovalFields', updatedApprovalFields)
+                  !updatedApprovalFields.isEmpty()
                 steps:
-                  - to: direct:syncOrgUnit
-              - simple: "${headers.DebeziumOperation} != 'd' && ${headers.DebeziumIdentifier} == 'dhis2.public.orgunitgroup'"
-                steps:
-                  - to: direct:syncOrgUnitGroup
-              - simple: "${headers.DebeziumOperation} != 'd' && ${headers.DebeziumIdentifier} == 'dhis2.public.orgunitgroupset'"
-                steps:
-                  - to: direct:syncOrgUnitGroupSet
+                  - to: direct:sendSyncApprovalRequest
+            otherwise:
+              steps:
+                - toD: ${variables.target['endpointUri']}
+
+- route:
+    id: mapRoute
+    from:
+      uri: direct:map
+      steps:
+        - setVariable:
+            description: |
+              Stashes temporarily away the metadata import payload in order to store the mapping file inside the body.
+            name: metadataImport
+            simple: ${body}
+        - setBody:
+            description: |
+              Attempts to read the mapping CSV file as set from `target.[n].mapping.file` or defaults to empty text.
+            groovy: "variables.target['mapping.file'] ? new File(variables.target['mapping.file']).text : ''"
+        - unmarshal:
+            csv:
+              captureHeaderRecord: true
+              useOrderedMaps: true
+        - setVariable:
+            description: |
+              Sets the variable to the `target.[n].mapping.matchOnColumn` app property or, if undefined, defaults to the 
+              first column in the CSV.
+            name: matchOnField
+            groovy: "variables.target['mapping.matchOnColumn'] ?: (headers.CamelCsvHeaderRecord[0] ?: '')"
+        - setVariable:
+            description: Pulls out the matching field from the metadata import payload.
+            name: matchOnResult
+            groovy: |
+              if (body.isEmpty()) return ''
+              exp = camelContext.resolveLanguage('jsonpath').createExpression("\$.*[0].${variables.matchOnField}")
+              exp.setResultType(String.class)
+              exp.evaluate(org.apache.camel.builder.ExchangeBuilder.anExchange(camelContext).withBody(variables.metadataImport).build(), String.class)
+        - transform:
+            description: Transforms the mappings into a JQ expression.
+            groovy: |
+              rules = { body.findAll { it[variables.matchOnField] == variables.matchOnResult}.collect { map ->
+                map.findAll { it.key != variables.matchOnField}.collect { k, v -> 
+                  """(if .[0].value[0].${variables.matchOnField} == "${variables.matchOnResult}" then .[0].value[0].$k = "$v" else . end)""" 
+                  }.join(' | ')
+              }[0] }      
+              "to_entries | ${rules() ?: '.'} | from_entries"
+        - setVariable:
+            name: jqExpression
+            simple: ${body}
+        - setBody:
+            description: Restores the body to the metadata import payload.
+            variable: metadataImport
+        - transform:
+            description: Applies the JQ expression on the metadata import payload.
+            groovy: camelContext.resolveLanguage('jq').createExpression(variables.jqExpression).evaluate(exchange, String.class)

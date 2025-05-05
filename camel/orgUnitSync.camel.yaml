@@ -1,10 +1,10 @@
-# fetches the changed organisation unit from the DHIS2 Web API
 - route:
     id: syncOrgUnitRoute
+    description: |
+      Fetches the changed org unit from the source DHIS2 Web API and transforms it into a metadata import payload.
     routeConfigurationId: deadLetterQueueRouteConfig
-    logMask: true
     from:
-      uri: direct:syncOrgUnit
+      uri: direct:organisationunit
       steps:
         - setVariable:
             name: id
@@ -27,9 +27,7 @@
                   - setVariable:
                       name: orgUnit
                       simple: ${body}
-        - log:
-            loggingLevel: INFO
-            message: "Syncing org unit [${variables.id}]..."
+        - log: "Syncing org unit [${variables.id}]..."
         - split:
             shareUnitOfWork: true
             method:
@@ -45,4 +43,4 @@
                     resultType: java.util.Map
                     bodyMediaType: application/x-java-object
                     expression: resource:classpath:datasonnet/orgUnit.ds
-              - toD: ${variables.target['endpointUri']}
+              - to: direct:sync

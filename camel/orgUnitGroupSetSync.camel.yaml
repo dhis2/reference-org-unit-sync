@@ -1,11 +1,13 @@
-# fetches the changed organisation unit group set from the DHIS2 Web API
 - route:
     id: syncOrgUnitGroupSetRoute
+    description: |
+      Fetches the changed org unit group set from the source DHIS2 Web API and transforms it into a metadata import.
     routeConfigurationId: deadLetterQueueRouteConfig
-    logMask: true
     from:
-      uri: direct:syncOrgUnitGroupSet
+      uri: direct:orgunitgroupset
       steps:
+        - filter:
+            simple: ${headers.DebeziumOperation} != 'd'
         - setVariable:
             name: id
             simple: ${body}
@@ -23,9 +25,7 @@
         - setVariable:
             name: orgUnitGroupSet
             simple: ${body}
-        - log:
-            loggingLevel: INFO
-            message: "Syncing create/update for org unit group set [${variables.id}]..."
+        - log: "Syncing create/update for org unit group set [${variables.id}]..."
         - split:
             shareUnitOfWork: true
             method:
@@ -41,4 +41,4 @@
                     resultType: java.util.Map
                     bodyMediaType: application/x-java-object
                     expression: resource:classpath:datasonnet/orgUnitGroupSet.ds
-              - toD: ${variables.target['endpointUri']}
+              - to: direct:sync

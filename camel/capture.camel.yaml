@@ -1,7 +1,6 @@
 - route:
     id: captureChangeRoute
     description: Listens for org unit changes in the source DHIS2 database.
-    logMask: true
     from:
       description: |
         Captures all database row changes applied to the tables `organisationunit`, `orgunitgroup`, and `orgunitgroupset`.
@@ -20,12 +19,12 @@
         tableIncludeList: "{{source.tableIncludeList:public.organisationunit,public.orgunitgroup,public.orgunitgroupset}}"
         columnIncludeList: ".*"
         schemaIncludeList: "{{source.schemaIncludeList:public}}"
-        slotName: slot1
+        slotName: "{{source.slotName:slot1}}"
         snapshotMode: "{{source.snapshotMode:no_data}}"
+        publicationAutocreateMode: "{{source.publicationAutocreateMode:disabled}}"
+        publicationName: "{{source.publicationName:dbz_publication}}"
       steps:
-        - log:
-            loggingLevel: INFO
-            message: "Capturing database change [${headers}]..."
+        - log: "Capturing database change [${headers}]..."
         - setHeader:
             description: |
               Copies the header while omitting the reserved `Camel` prefix from the new header name so that the header 
@@ -34,20 +33,19 @@
             header: CamelDebeziumOperation
         - setHeader:
             description: |
-              Copies the header while omitting the reserved `Camel` prefix from the new header name so that the header 
-              is added to the JMS message.
-            name: DebeziumIdentifier
-            header: CamelDebeziumIdentifier
+              TODO
+            name: DebeziumSourceTable
+            simple: ${headers.CamelDebeziumSourceMetadata['table']}
         - setHeader:
             description: Records the changed columns.
             name: DebeziumDiff
             groovy: |
               (headers.CamelDebeziumBefore?.schema()?.fields() ?: body.schema().fields())
                 .findAll { headers.CamelDebeziumBefore?.get(it) != (body?.get(it) ?: true) }
-                .collect { headers.CamelDebeziumSourceMetadata.table + '.' + it.name() }.join(',')
+                .collect { headers.DebeziumSourceTable + '.' + it.name() }.join(',')
         - setBody:
             description: |
-              Falls back to the pre-change row UID in case the post-change row UID does not exist. Typically this means 
+              Falls back to the pre-commit row UID in case the post-commit row UID does not exist. Typically this means 
               that the row was deleted.
             groovy: "body?.get('uid') ?: headers.CamelDebeziumBefore.get('uid')"
         - to: jms:queue:delta/sync/1

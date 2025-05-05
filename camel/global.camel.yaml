@@ -1,6 +1,6 @@
-# sets up an error handler policy to capture failed synchronisations in a dead letter queue
 - routeConfiguration:
     id: deadLetterQueueRouteConfig
+    description: Sets up an error handler policy to capture failed synchronisations in a dead letter queue
     errorHandler:
       deadLetterChannel:
         redeliveryPolicy:
@@ -8,11 +8,12 @@
           maximumRedeliveries: "{{deadLetterChannel.maximumRedeliveries:3}}"
           useExponentialBackOff: "{{deadLetterChannel.useExponentialBackOff:true}}"
           logExhaustedMessageHistory: true
+          logExhausted: true
+          logHandled: true
         deadLetterUri: "{{deadLetterChannel.deadLetterUri:jms:queue:DLQ}}"
         useOriginalMessage: true
-        onPrepareFailureRef: "{{deadLetterChannel.onPrepareFailureRef:#class:DeadLetterQueueProcessor}}"
 
-# configures the data source to the source DHIS2 database
+# Configures the data source to the source DHIS2 database.
 - beans:
     - name: dataSource
       properties:
