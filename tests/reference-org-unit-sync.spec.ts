@@ -2,21 +2,25 @@ import { test, expect } from '@playwright/test';
 
 test('has org units synced', async ({ request }) => {
 
-    const orgUnit = await request.post('http://localhost:8080/api/organisationUnits', {
+    const orgUnit = await request.post('http://localhost:8080/api/metadata?importStrategy=CREATE_AND_UPDATE', {
         data: {
-          id: 'b7HFMWjj3im',
-          name: 'Acme',
-          code: 'ACME',
-          shortName: 'Acme',
-          openingDate: '2020-01-01'
+          organisationUnits: [
+              {
+                  id: 'b7HFMWjj3im',
+                  name: 'Acme',
+                  code: 'ACME',
+                  shortName: 'Acme',
+                  openingDate: '2020-01-01'
+              }
+          ]
         },
-         headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Basic YWRtaW46ZGlzdHJpY3Q=',
-            },
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Basic YWRtaW46ZGlzdHJpY3Q=',
+        },
     });
 
-    expect(orgUnit.status()).toBe(201)
+    expect(orgUnit.status()).toBe(200)
 
     await expect.poll(async () => {
       const response = await request.get('http://localhost:8081/api/organisationUnits/b7HFMWjj3im', {

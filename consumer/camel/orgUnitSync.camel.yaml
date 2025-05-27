@@ -1,27 +1,15 @@
 - route:
     id: syncOrgUnitRoute
     description: |
-      Fetches the changed org unit from the source DHIS2 Web API and transforms it into a metadata import payload.
+      Transforms the org unit into a metadata import payload.
     routeConfigurationId: deadLetterQueueRouteConfig
     from:
       uri: direct:organisationunit
       steps:
-        - setVariable:
-            name: id
-            simple: ${body}
         - choice:
             when:
               - simple: ${headers.DebeziumOperation} != 'd'
                 steps:
-                  - toD:
-                      uri: dhis2:get/resource
-                      parameters:
-                        path: organisationUnits/${variables.id}
-                        fields: "*"
-                        baseApiUrl: ${properties:source.dhis2ApiUrl}
-                        username: ${properties:source.dhis2ApiUsername:}
-                        password: ${properties:source.dhis2ApiPassword:}
-                        personalAccessToken: ${properties:source.dhis2ApiPersonalAccessToken:}
                   - unmarshal:
                       json: { }
                   - setVariable:
@@ -44,3 +32,4 @@
                     bodyMediaType: application/x-java-object
                     expression: resource:classpath:datasonnet/orgUnit.ds
               - to: direct:sync
+

@@ -16,8 +16,10 @@ jobs:
     - name: Install JBang
       run: curl -Ls https://sh.jbang.dev | bash -s - app setup
     - run: ~/.jbang/bin/jbang trust add https://github.com/apache/camel/
-    - run: docker compose -f tests/compose.yaml up -d
-    - run: ~/.jbang/bin/jbang -Dcamel.jbang.version=4.12.0-SNAPSHOT camel@apache/camel run application.properties tests/application.test.properties &
+    - run: docker run -d -p 8161:8161 -p 61616:61616 -p 5672:5672 -e ANONYMOUS_LOGIN=true apache/activemq-artemis:2.38.0
+    - run: docker compose -f tests/compose.yaml up --wait
+    - run: cd publisher && ~/.jbang/bin/jbang -Dcamel.jbang.version=4.12.0-SNAPSHOT camel@apache/camel run application.properties ../tests/publisher.test.properties &
+    - run: cd consumer && ~/.jbang/bin/jbang -Dcamel.jbang.version=4.12.0-SNAPSHOT camel@apache/camel run application.properties ../tests/consumer.test.properties &
     - name: Install dependencies
       run: npm install -g yarn && yarn
     - name: Install Playwright Browsers

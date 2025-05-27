@@ -1,7 +1,7 @@
 .idea/
 .camel-jbang/
 .citrus-jbang/
-data/
+publisher/data/
 
 # Playwright
 node_modules/

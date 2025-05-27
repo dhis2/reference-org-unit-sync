@@ -3,7 +3,7 @@
         <persistence-enabled>false</persistence-enabled>
         <security-enabled>false</security-enabled>
         <acceptors>
-            <acceptor name="in-vm">vm://0</acceptor>
+            <acceptor name="artemis">tcp://0.0.0.0:61616</acceptor>
         </acceptors>
     </core>
 </configuration>
