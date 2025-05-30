@@ -1,21 +1,22 @@
 - route:
     id: syncOrgUnitRoute
     description: |
-      Transforms the org unit into a metadata import payload.
+      Transforms the org unit into a metadata import payload before routing the payload to each target server
     routeConfigurationId: deadLetterQueueRouteConfig
     from:
       uri: direct:organisationunit
       steps:
+        - log: "Syncing org unit [${variables.id}]..."
         - choice:
             when:
               - simple: ${headers.DebeziumOperation} != 'd'
+                description: Executes rule for non-delete synchronisations
                 steps:
                   - unmarshal:
                       json: { }
                   - setVariable:
                       name: orgUnit
                       simple: ${body}
-        - log: "Syncing org unit [${variables.id}]..."
         - split:
             shareUnitOfWork: true
             method:
@@ -32,4 +33,3 @@
                     bodyMediaType: application/x-java-object
                     expression: resource:classpath:datasonnet/orgUnit.ds
               - to: direct:sync
-

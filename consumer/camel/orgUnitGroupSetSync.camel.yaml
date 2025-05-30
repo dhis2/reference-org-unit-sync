@@ -1,13 +1,11 @@
 - route:
     id: syncOrgUnitGroupSetRoute
     description: |
-      Transforms the org unit group set into a metadata import payload.
+      Transforms the org unit group set into a metadata import payload before routing the payload to each target server
     routeConfigurationId: deadLetterQueueRouteConfig
     from:
       uri: direct:orgunitgroupset
       steps:
-        - filter:
-            simple: ${headers.DebeziumOperation} != 'd'
         - unmarshal:
             json: { }
         - setVariable:

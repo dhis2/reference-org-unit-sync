@@ -51,7 +51,7 @@
             groovy: "body?.get('uid') ?: headers.CamelDebeziumBefore.get('uid')"
         - toD:
             description: |
-              Dynamically selects the route to send the captured change based on the name of the source table.
+              Dynamically selects the route to fetch the captured change based on the name of the source table.
             uri: direct:${headers.DebeziumSourceTable}
         - to: jms:topic:delta/sync/1
 
@@ -86,6 +86,7 @@
       uri: direct:orgunitgroup
       steps:
         - filter:
+            description: Drops delete synchronisations
             simple: ${headers.DebeziumOperation} != 'd'
         - setVariable:
             name: id
@@ -109,6 +110,7 @@
       uri: direct:orgunitgroupset
       steps:
         - filter:
+            description: Drops delete synchronisations
             simple: ${headers.DebeziumOperation} != 'd'
         - setVariable:
             name: id
