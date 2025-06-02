@@ -264,7 +264,7 @@ The error causing the synchronisation to fail can be analysed from the log file 
 
 If synchronisation fails again because the error persists or a different error occurs, then the newly failed synchronisation is pushed to the dead-letter queue.
 
-On a standalone ActiveMQ Artemis broker, the management console is typically available on port _8161_. By default, however, the management console is unavailable because the app runs an embedded Artemis instance. It is strongly recommended to replace the embedded broker with a standalone one for operational purposes (e.g., observability). Once you have a standalone broker running, you will need to set bother the producer and consumer app parameters `camel.component.jms.connection-factory.brokerURL` to the standalone broker address.
+On a standalone ActiveMQ Artemis broker, the management console is typically available on port _8161_. By default, however, the management console is unavailable because the app runs an embedded Artemis instance. It is strongly recommended to replace the embedded broker with a standalone one for operational purposes (e.g., observability). Once you have a standalone broker running, you will need to set both the producer and consumer app parameters `camel.component.jms.connection-factory.brokerURL` to the standalone broker address.
 
 ### Mapping
 
