@@ -54,7 +54,7 @@ test("has created org unit synced", async function({
         });
         return response.status();
     }, {
-        timeout: 70000
+        timeout: 60000
     }).toBe(200);
 });
 
@@ -66,7 +66,6 @@ test("has deleted org unit synced", async function({
         data: {
             organisationUnits: [{
                 code: "EVIL_CORP",
-
                 id: "fdc6uOvgoji",
                 name: "EvilCorp",
                 openingDate: "2020-01-01",
@@ -89,7 +88,7 @@ test("has deleted org unit synced", async function({
         });
         return response.status();
     }, {
-        timeout: 70000
+        timeout: 60000
     }).toBe(200);
 
     const deletedOrgUnit = await request.delete("http://localhost:8080/api/organisationUnits/fdc6uOvgoji", {
@@ -108,7 +107,7 @@ test("has deleted org unit synced", async function({
         });
         return response.status();
     }, {
-        timeout: 70000
+        timeout: 60000
     }).toBe(404);
 });
 
@@ -141,7 +140,7 @@ test("has created org unit group synced", async function({
         });
         return response.status();
     }, {
-        timeout: 70000
+        timeout: 60000
     }).toBe(200);
 
     await expect.poll(async function() {
@@ -153,7 +152,7 @@ test("has created org unit group synced", async function({
         });
         return response.status();
     }, {
-        timeout: 70000
+        timeout: 60000
     }).toBe(200);
 });
 
@@ -186,7 +185,7 @@ test("has created org unit group set synced", async function({
         });
         return response.status();
     }, {
-        timeout: 70000
+        timeout: 60000
     }).toBe(200);
 
     await expect.poll(async function() {
@@ -198,6 +197,6 @@ test("has created org unit group set synced", async function({
         });
         return response.status();
     }, {
-        timeout: 70000
+        timeout: 60000
     }).toBe(200);
 });
