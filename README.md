@@ -208,7 +208,7 @@ The subsequent table lists the parameters that can be configured in the consumer
 |      camel.component.jms.connection-factory      | TODO            |
 |            camel.jbang.classpathFiles            | TODO            |
 |             camel.jbang.dependencies             | TODO            |
-|          camel.jbang.platform-http.port          | TODO            |
+|                camel.server.port                 | TODO            |
 |                camel.main.logMask                | TODO            |
 |         camel.main.routesIncludePattern          | TODO            |
 |         deadLetterChannel.deadLetterUri          | TODO            |

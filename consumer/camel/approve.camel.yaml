@@ -110,7 +110,7 @@
         - setVariable:
             description: Sets a variable to the app's HTTP port number.
             name: camelJbangPlatformHttpPort
-            constant: "{{camel.jbang.platform-http.port}}"
+            constant: "{{camel.server.port}}"
         - setVariable:
             description: | 
               Sets a variable to the app's user-defined hostname. If the user has not specified a hostname, then it 
