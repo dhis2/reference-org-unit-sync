@@ -79,13 +79,14 @@ services:
 
   configureTableReplication:
     image: alpine/psql:17.4
+    entrypoint: sh
     command: >
-      postgres://dhis:dhis@sourceDb:5432/dhis2  
-        -c "ALTER TABLE public.organisationunit REPLICA IDENTITY FULL"
-        -c "DROP USER IF EXISTS orgunitsyncapp"
-        -c "CREATE USER orgunitsyncapp WITH REPLICATION PASSWORD 'dhis'"
-        -c "DROP PUBLICATION IF EXISTS dbz_publication"
-        -c "CREATE PUBLICATION dbz_publication FOR TABLE organisationunit, orgunitgroup, orgunitgroupset"
+      -c "/usr/bin/psql postgres://dhis:dhis@sourceDb:5432/dhis2
+      -c 'ALTER TABLE public.organisationunit REPLICA IDENTITY FULL'
+      -c 'DROP USER IF EXISTS orgunitsyncapp'
+      -c \"CREATE USER orgunitsyncapp WITH REPLICATION PASSWORD 'dhis'\" 
+      -c 'DROP PUBLICATION IF EXISTS dbz_publication'
+      -c 'CREATE PUBLICATION dbz_publication FOR TABLE organisationunit, orgunitgroup, orgunitgroupset' && tail -f /dev/null"
     depends_on:
       sourceDhis2:
         condition: service_healthy

@@ -3,10 +3,15 @@
     description: Routes the captured change to the corresponding route.
     routeConfigurationId: deadLetterQueueRouteConfig
     from:
-      uri: jms:queue:delta/sync/1
+      uri: jms:topic:delta/sync/1
       parameters:
-        transacted: true
+        clientId: 1
+        durableSubscriptionName: sync
+        acknowledgementModeName: CLIENT_ACKNOWLEDGE
       steps:
+        - setVariable:
+            name: id
+            header: id
         - toD:
             description: |
               Dynamically selects the route to send the captured change based on the name of the source table.
@@ -24,21 +29,61 @@
       uri: direct:sync
       steps:
         - to: direct:map
+        - to:
+            uri: direct:checkPendingApproval
+            variableReceive: isPendingApproval
         - choice:
             description: |
-              Evaluates whether the sync should be manually approved according to the `target.[n].fieldsRequireApproval` 
-              property.
+              Evaluates whether the sync should be manually approved depending on the `target.[n].fieldsRequireApproval` 
+              property and any pending approvals.
             when:
               - groovy: |
                   fieldsRequireApproval = variables.target.fieldsRequireApproval.split(',') as List
                   updatedApprovalFields = fieldsRequireApproval.intersect(headers.DebeziumDiff.split(',') as List)
                   exchange.setVariable('updatedApprovalFields', updatedApprovalFields)
-                  !updatedApprovalFields.isEmpty()
+                  variables.isPendingApproval || !updatedApprovalFields.isEmpty()
                 steps:
                   - to: direct:sendSyncApprovalRequest
             otherwise:
               steps:
                 - toD: ${variables.target['endpointUri']}
+
+- route:
+    id: checkPendingApprovalRoute
+    description: Sets the message body to true if the target server has pending approvals, otherwise sets it to false.
+    routeConfigurationId: deadLetterQueueRouteConfig
+    from:
+      uri: direct:checkPendingApproval
+      steps:
+        - setBody:
+            simple: ${null}
+        - doTry:
+            steps:
+              - toD:
+                  description: Fetches the draft metadata import from the target DHIS2 data store.
+                  uri: dhis2:get/resource
+                  parameters:
+                    path: dataStore/org-unit-sync
+                    baseApiUrl: ${variables.target['dhis2ApiUrl']}
+                    username: ${variables.target['dhis2ApiUsername']}
+                    password: ${variables.target['dhis2ApiPassword']}
+                    personalAccessToken: ${variables.target['personalAccessToken']}
+              - log:
+                  loggingLevel: WARN
+                  message: > 
+                   One or more pending approvals found on target server [${variables.target['dhis2ApiUrl']}].
+                   Resource [${variables.id}] will not be synced until all pending synchronisations have been approved
+                   or deleted from the target DHIS2 data store
+              - setBody:
+                  groovy: true
+              - doCatch:
+                  exception:
+                    - org.hisp.dhis.integration.sdk.api.RemoteDhis2ClientException
+                  onWhen:
+                    simple: ${exception.cause.httpStatusCode} == 404
+                  steps:
+                    - setBody:
+                        groovy: false
 
 - route:
     id: mapRoute

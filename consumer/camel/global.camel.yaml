@@ -12,14 +12,3 @@
           logHandled: true
         deadLetterUri: "{{deadLetterChannel.deadLetterUri:jms:queue:DLQ}}"
         useOriginalMessage: true
-
-# Configures the data source to the source DHIS2 database.
-- beans:
-    - name: dataSource
-      properties:
-        databaseName: "{{source.dhis2DatabaseDbName}}"
-        user: "{{source.dhis2DatabaseUser}}"
-        password: "{{source.dhis2DatabasePassword}}"
-        portNumber: "{{source.dhis2DatabasePort}}"
-        serverName: "{{source.dhis2DatabaseHostname}}"
-      type: org.postgresql.ds.PGSimpleDataSource

@@ -1,33 +1,22 @@
 - route:
     id: syncOrgUnitRoute
     description: |
-      Fetches the changed org unit from the source DHIS2 Web API and transforms it into a metadata import payload.
+      Transforms the org unit into a metadata import payload before routing the payload to each target server
     routeConfigurationId: deadLetterQueueRouteConfig
     from:
       uri: direct:organisationunit
       steps:
-        - setVariable:
-            name: id
-            simple: ${body}
+        - log: "Syncing org unit [${variables.id}]..."
         - choice:
             when:
               - simple: ${headers.DebeziumOperation} != 'd'
+                description: Executes rule for non-delete synchronisations
                 steps:
-                  - toD:
-                      uri: dhis2:get/resource
-                      parameters:
-                        path: organisationUnits/${variables.id}
-                        fields: "*"
-                        baseApiUrl: ${properties:source.dhis2ApiUrl}
-                        username: ${properties:source.dhis2ApiUsername:}
-                        password: ${properties:source.dhis2ApiPassword:}
-                        personalAccessToken: ${properties:source.dhis2ApiPersonalAccessToken:}
                   - unmarshal:
                       json: { }
                   - setVariable:
                       name: orgUnit
                       simple: ${body}
-        - log: "Syncing org unit [${variables.id}]..."
         - split:
             shareUnitOfWork: true
             method:

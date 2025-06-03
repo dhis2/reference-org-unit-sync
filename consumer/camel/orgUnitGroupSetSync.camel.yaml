@@ -1,25 +1,11 @@
 - route:
     id: syncOrgUnitGroupSetRoute
     description: |
-      Fetches the changed org unit group set from the source DHIS2 Web API and transforms it into a metadata import.
+      Transforms the org unit group set into a metadata import payload before routing the payload to each target server
     routeConfigurationId: deadLetterQueueRouteConfig
     from:
       uri: direct:orgunitgroupset
       steps:
-        - filter:
-            simple: ${headers.DebeziumOperation} != 'd'
-        - setVariable:
-            name: id
-            simple: ${body}
-        - toD:
-            uri: dhis2:get/resource
-            parameters:
-              path: organisationUnitGroupSets/${variables.id}
-              fields: "*"
-              baseApiUrl: ${properties:source.dhis2ApiUrl}
-              username: ${properties:source.dhis2ApiUsername:}
-              password: ${properties:source.dhis2ApiPassword:}
-              personalAccessToken: ${properties:source.dhis2ApiPersonalAccessToken:}
         - unmarshal:
             json: { }
         - setVariable:

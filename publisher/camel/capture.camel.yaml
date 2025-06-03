@@ -1,0 +1,126 @@
+- route:
+    id: captureChangeRoute
+    description: Listens for org unit changes in the source DHIS2 database.
+    from:
+      description: |
+        Captures all database row changes applied to the tables `organisationunit`, `orgunitgroup`, and `orgunitgroupset`.
+        This table list can be customised to exclude or include other tables (e.g., `users`) by setting the 
+        `source.tableIncludeList` application property.
+      uri: debezium-postgres:dhis2
+      parameters:
+        databaseHostname: "{{source.dhis2DatabaseHostname}}"
+        databasePort: "{{source.dhis2DatabasePort}}"
+        databaseUser: "{{source.dhis2DatabaseUser}}"
+        databasePassword: "{{source.dhis2DatabasePassword}}"
+        databaseDbname: "{{source.dhis2DatabaseDbName}}"
+        offsetStorageFileName: "{{source.offsetStorageFileName:data/offset.dat}}"
+        topicPrefix: dhis2
+        pluginName: pgoutput
+        tableIncludeList: "{{source.tableIncludeList:public.organisationunit,public.orgunitgroup,public.orgunitgroupset}}"
+        columnIncludeList: ".*"
+        schemaIncludeList: "{{source.schemaIncludeList:public}}"
+        slotName: "{{source.slotName:slot1}}"
+        snapshotMode: "{{source.snapshotMode:no_data}}"
+        publicationAutocreateMode: "{{source.publicationAutocreateMode:disabled}}"
+        publicationName: "{{source.publicationName:dbz_publication}}"
+      steps:
+        - log: "Capturing database change [${headers}]..."
+        - setHeader:
+            description: |
+              Copies the header while omitting the reserved `Camel` prefix from the new header name so that the header 
+              is added to the JMS message.
+            name: DebeziumOperation
+            header: CamelDebeziumOperation
+        - setHeader:
+            description: |
+              TODO
+            name: DebeziumSourceTable
+            simple: ${headers.CamelDebeziumSourceMetadata['table']}
+        - setHeader:
+            description: Records the changed columns.
+            name: DebeziumDiff
+            groovy: |
+              (headers.CamelDebeziumBefore?.schema()?.fields() ?: body.schema().fields())
+                .findAll { headers.CamelDebeziumBefore?.get(it) != (body?.get(it) ?: true) }
+                .collect { headers.DebeziumSourceTable + '.' + it.name() }.join(',')
+        - setHeader:
+            description: |
+              Falls back to the pre-commit row UID in case the post-commit row UID does not exist. Typically this means 
+              that the row was deleted.
+            name: id
+            groovy: "body?.get('uid') ?: headers.CamelDebeziumBefore.get('uid')"
+        - toD:
+            description: |
+              Dynamically selects the route to fetch the captured change based on the name of the source table.
+            uri: direct:${headers.DebeziumSourceTable}
+        - to: jms:topic:delta/sync/1
+
+- route:
+    id: fetchOrgUnitRoute
+    description: |
+      Fetches the changed org unit from the source DHIS2 Web API.
+    routeConfigurationId: deadLetterQueueRouteConfig
+    from:
+      uri: direct:organisationunit
+      steps:
+        - choice:
+            when:
+              - simple: ${headers.DebeziumOperation} != 'd'
+                steps:
+                  - toD:
+                      uri: dhis2:get/resource
+                      parameters:
+                        path: organisationUnits/${header.id}
+                        fields: "*"
+                        baseApiUrl: ${properties:source.dhis2ApiUrl}
+                        username: ${properties:source.dhis2ApiUsername:}
+                        password: ${properties:source.dhis2ApiPassword:}
+                        personalAccessToken: ${properties:source.dhis2ApiPersonalAccessToken:}
+
+- route:
+    id: fetchOrgUnitGroupRoute
+    description: |
+      Fetches the changed org unit group from the source DHIS2 Web API.
+    routeConfigurationId: deadLetterQueueRouteConfig
+    from:
+      uri: direct:orgunitgroup
+      steps:
+        - filter:
+            description: Drops delete synchronisations
+            simple: ${headers.DebeziumOperation} != 'd'
+        - setVariable:
+            name: id
+            simple: ${body}
+        - toD:
+            uri: dhis2:get/resource
+            parameters:
+              path: organisationUnitGroups/${header.id}
+              fields: "*"
+              baseApiUrl: ${properties:source.dhis2ApiUrl}
+              username: ${properties:source.dhis2ApiUsername:}
+              password: ${properties:source.dhis2ApiPassword:}
+              personalAccessToken: ${properties:source.dhis2ApiPersonalAccessToken:}
+
+- route:
+    id: fetchOrgUnitGroupSetRoute
+    description: |
+      Fetches the changed org unit group set from the source DHIS2 Web API.
+    routeConfigurationId: deadLetterQueueRouteConfig
+    from:
+      uri: direct:orgunitgroupset
+      steps:
+        - filter:
+            description: Drops delete synchronisations
+            simple: ${headers.DebeziumOperation} != 'd'
+        - setVariable:
+            name: id
+            simple: ${body}
+        - toD:
+            uri: dhis2:get/resource
+            parameters:
+              path: organisationUnitGroupSets/${header.id}
+              fields: "*"
+              baseApiUrl: ${properties:source.dhis2ApiUrl}
+              username: ${properties:source.dhis2ApiUsername:}
+              password: ${properties:source.dhis2ApiPassword:}
+              personalAccessToken: ${properties:source.dhis2ApiPersonalAccessToken:}
