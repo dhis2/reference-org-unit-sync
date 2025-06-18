@@ -46,7 +46,7 @@ To monitor and manage the publisher or the consumer, open a new terminal in the 
 
 ![Hawtio console](docs/hawtio-connect.png)
 
-If not already connected, connect the console to JVM agent which should direct your browser to http://localhost:8888/hawtio/camel/contexts:
+If not already connected, connect the console to the app's JVM agent which should direct your browser to http://localhost:8888/hawtio/camel/contexts:
 
 ![Hawtio console](docs/hawtio-camel.png)
 
