@@ -10,13 +10,13 @@
 
 ## What is this implementation?
 
-A frequent requirement in an architecture with multiple DHIS2 instances is keeping the DHIS2 organisation units synchronised. Consider a DHIS2 server acting as a master facility registry. Such a server would typically need to have its organisation unit changes replicated to other servers. This reference implementation reliably synchronises the organisation units of a primary DHIS2 server with one or more DHIS2 servers. In particular, it performs one-way synchronisation of the subsequent DHIS2 resources:
+A frequent requirement in an architecture with multiple DHIS2 instances is keeping the DHIS2 organisation units synchronised. Consider a DHIS2 server acting as a master facility registry. Such a server would typically need to have its organisation unit changes replicated to other servers. This reference, event-driven implementation reliably synchronises the organisation units of a primary DHIS2 server with one or more DHIS2 servers. In particular, it performs one-way synchronisation of the subsequent DHIS2 resources:
 
 * Organisation units: creates, updates, and deletes
 * Organisation unit groups: creates and updates
 * Organisation unit group sets: creates and updates
 
-This is an example which should be used for reference. It **SHOULD NOT** be used directly in production without adapting it to your local context.
+This is an example meant to guide you in implementing your own organisation unit synchronisation solution. It **SHOULD NOT** be used directly in production without adapting it to your local context.
 
 ## Quick Start
 
