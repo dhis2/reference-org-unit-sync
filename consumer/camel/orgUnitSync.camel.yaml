@@ -6,7 +6,7 @@
     from:
       uri: direct:organisationunit
       steps:
-        - log: "Syncing org unit [${variables.id}]..."
+        - log: "Preparing to sync org unit [${variables.id}]..."
         - choice:
             when:
               - simple: ${headers.DebeziumOperation} != 'd'
@@ -14,22 +14,10 @@
                 steps:
                   - unmarshal:
                       json: { }
-                  - setVariable:
-                      name: orgUnit
-                      simple: ${body}
-        - split:
-            shareUnitOfWork: true
-            method:
-              beanType: "TargetsSplitter"
-              method: "split"
-            steps:
-              - setVariable:
-                  name: target
-                  simple: ${body}
-              - transform:
-                  datasonnet:
-                    outputMediaType: application/x-java-object
-                    resultType: java.util.Map
-                    bodyMediaType: application/x-java-object
-                    expression: resource:classpath:datasonnet/orgUnit.ds
-              - to: direct:sync
+        - transform:
+            datasonnet:
+              outputMediaType: application/x-java-object
+              resultType: java.util.Map
+              bodyMediaType: application/x-java-object
+              expression: resource:classpath:datasonnet/orgUnit.ds
+        - to: direct:sync

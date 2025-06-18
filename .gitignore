@@ -1,7 +1,6 @@
 .idea/
 .camel-jbang/
 .citrus-jbang/
-publisher/data/
 
 # Playwright
 node_modules/
@@ -10,3 +9,8 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 *.bcfks
+
+publisher/data/offset.dat
+publisher/data/bindings
+publisher/data/journal
+publisher/data/largemessages

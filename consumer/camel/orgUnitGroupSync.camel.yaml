@@ -6,25 +6,13 @@
     from:
       uri: direct:orgunitgroup
       steps:
+        - log: "Preparing to sync org unit group [${variables.id}]..."
         - unmarshal:
             json: { }
-        - setVariable:
-            name: orgUnitGroup
-            simple: ${body}
-        - log: "Syncing create/update for org unit group [${variables.id}]..."
-        - split:
-            shareUnitOfWork: true
-            method:
-              beanType: "TargetsSplitter"
-              method: "split"
-            steps:
-              - setVariable:
-                  name: target
-                  simple: ${body}
-              - transform:
-                  datasonnet:
-                    outputMediaType: application/x-java-object
-                    resultType: java.util.Map
-                    bodyMediaType: application/x-java-object
-                    expression: resource:classpath:datasonnet/orgUnitGroup.ds
-              - to: direct:sync
+        - transform:
+            datasonnet:
+              outputMediaType: application/x-java-object
+              resultType: java.util.Map
+              bodyMediaType: application/x-java-object
+              expression: resource:classpath:datasonnet/orgUnitGroup.ds
+        - to: direct:sync

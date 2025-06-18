@@ -5,24 +5,24 @@
       description: |
         Captures all database row changes applied to the tables `organisationunit`, `orgunitgroup`, and `orgunitgroupset`.
         This table list can be customised to exclude or include other tables (e.g., `users`) by setting the 
-        `source.tableIncludeList` application property.
+        `tableIncludeList` application property.
       uri: debezium-postgres:dhis2
       parameters:
-        databaseHostname: "{{source.dhis2DatabaseHostname}}"
-        databasePort: "{{source.dhis2DatabasePort}}"
-        databaseUser: "{{source.dhis2DatabaseUser}}"
-        databasePassword: "{{source.dhis2DatabasePassword}}"
-        databaseDbname: "{{source.dhis2DatabaseDbName}}"
-        offsetStorageFileName: "{{source.offsetStorageFileName:data/offset.dat}}"
+        databaseHostname: "{{dhis2DatabaseHostname}}"
+        databasePort: "{{dhis2DatabasePort}}"
+        databaseUser: "{{dhis2DatabaseUser}}"
+        databasePassword: "{{dhis2DatabasePassword}}"
+        databaseDbname: "{{dhis2DatabaseDbName}}"
+        offsetStorageFileName: "{{offsetStorageFileName:data/offset.dat}}"
         topicPrefix: dhis2
         pluginName: pgoutput
-        tableIncludeList: "{{source.tableIncludeList:public.organisationunit,public.orgunitgroup,public.orgunitgroupset}}"
+        tableIncludeList: "{{tableIncludeList:public.organisationunit,public.orgunitgroup,public.orgunitgroupset}}"
         columnIncludeList: ".*"
-        schemaIncludeList: "{{source.schemaIncludeList:public}}"
-        slotName: "{{source.slotName:slot1}}"
-        snapshotMode: "{{source.snapshotMode:no_data}}"
-        publicationAutocreateMode: "{{source.publicationAutocreateMode:disabled}}"
-        publicationName: "{{source.publicationName:dbz_publication}}"
+        schemaIncludeList: "{{schemaIncludeList:public}}"
+        slotName: "{{slotName:slot1}}"
+        snapshotMode: "{{snapshotMode:no_data}}"
+        publicationAutocreateMode: "{{publicationAutocreateMode:disabled}}"
+        publicationName: "{{publicationName:dbz_publication}}"
       steps:
         - log: "Capturing database change [${headers}]..."
         - setHeader:
@@ -53,7 +53,7 @@
             description: |
               Dynamically selects the route to fetch the captured change based on the name of the source table.
             uri: direct:${headers.DebeziumSourceTable}
-        - to: jms:topic:delta/sync/1
+        - to: jms:topic:metadata
 
 - route:
     id: fetchOrgUnitRoute
@@ -72,10 +72,10 @@
                       parameters:
                         path: organisationUnits/${header.id}
                         fields: "*"
-                        baseApiUrl: ${properties:source.dhis2ApiUrl}
-                        username: ${properties:source.dhis2ApiUsername:}
-                        password: ${properties:source.dhis2ApiPassword:}
-                        personalAccessToken: ${properties:source.dhis2ApiPersonalAccessToken:}
+                        baseApiUrl: ${properties:dhis2ApiUrl}
+                        username: ${properties:dhis2ApiUsername:}
+                        password: ${properties:dhis2ApiPassword:}
+                        personalAccessToken: ${properties:dhis2ApiPersonalAccessToken:}
 
 - route:
     id: fetchOrgUnitGroupRoute
@@ -96,10 +96,10 @@
             parameters:
               path: organisationUnitGroups/${header.id}
               fields: "*"
-              baseApiUrl: ${properties:source.dhis2ApiUrl}
-              username: ${properties:source.dhis2ApiUsername:}
-              password: ${properties:source.dhis2ApiPassword:}
-              personalAccessToken: ${properties:source.dhis2ApiPersonalAccessToken:}
+              baseApiUrl: ${properties:dhis2ApiUrl}
+              username: ${properties:dhis2ApiUsername:}
+              password: ${properties:dhis2ApiPassword:}
+              personalAccessToken: ${properties:dhis2ApiPersonalAccessToken:}
 
 - route:
     id: fetchOrgUnitGroupSetRoute
@@ -120,7 +120,7 @@
             parameters:
               path: organisationUnitGroupSets/${header.id}
               fields: "*"
-              baseApiUrl: ${properties:source.dhis2ApiUrl}
-              username: ${properties:source.dhis2ApiUsername:}
-              password: ${properties:source.dhis2ApiPassword:}
-              personalAccessToken: ${properties:source.dhis2ApiPersonalAccessToken:}
+              baseApiUrl: ${properties:dhis2ApiUrl}
+              username: ${properties:dhis2ApiUsername:}
+              password: ${properties:dhis2ApiPassword:}
+              personalAccessToken: ${properties:dhis2ApiPersonalAccessToken:}

@@ -1,21 +1,41 @@
-- route:
-    id: consumeChangeRoute
-    description: Routes the captured change to the corresponding route.
-    routeConfigurationId: deadLetterQueueRouteConfig
-    from:
-      uri: jms:topic:delta/sync/1
-      parameters:
-        clientId: 1
-        durableSubscriptionName: sync
-        acknowledgementModeName: CLIENT_ACKNOWLEDGE
-      steps:
-        - setVariable:
-            name: id
-            header: id
-        - toD:
-            description: |
-              Dynamically selects the route to send the captured change based on the name of the source table.
-            uri: direct:${headers.DebeziumSourceTable}
+- routeTemplate:
+    id: metadataSubscriberRouteTemplate
+    route:
+      description: |
+        Routes the captured change to the corresponding route. This route template is materialised into a route for each 
+        target resulting in a subscriber per target.
+      routeConfigurationId: deadLetterQueueRouteConfig
+      from:
+        uri: jms:topic:metadata
+        parameters:
+          clientId: "{{clientId}}"
+          durableSubscriptionName: OrgUnitSyncConsumer
+          acknowledgementModeName: CLIENT_ACKNOWLEDGE
+          maxConcurrentConsumers: 1
+        steps:
+          - setVariable:
+              name: id
+              header: id
+          - setVariable:
+              name: target
+              groovy: |
+                [
+                  'index': '{{index}}',
+                  'dhis2ApiUrl': '{{dhis2ApiUrl}}',       
+                  'dhis2ApiUsername': '{{dhis2ApiUsername:}}',               
+                  'dhis2ApiPassword': '{{dhis2ApiPassword:}}',    
+                  'personalAccessToken': '{{personalAccessToken:}}',               
+                  'idScheme': '{{idScheme:uid}}',
+                  'camelDirectEndpointName': '{{camelDirectEndpointName}}',
+                  'fieldsRequireApproval': '{{fieldsRequireApproval}}',
+                  'messageConversationUserId': '{{messageConversationUserId}}',
+                  'allowedOperations': '{{allowedOperations}}',
+                  'resourceMap.file': '{{resourceMap.file:}}'
+                ]
+          - toD:
+              description: |
+                Dynamically selects the route to send the captured change based on the name of the source table.
+              uri: direct:${headers.DebeziumSourceTable}
 
 - route:
     id: syncChangeRoute
@@ -28,6 +48,8 @@
     from:
       uri: direct:sync
       steps:
+        - filter:
+            groovy: variables.target.allowedOperations.split(',').contains(headers.DebeziumOperation)
         - to: direct:map
         - to:
             uri: direct:checkPendingApproval
@@ -46,7 +68,7 @@
                   - to: direct:sendSyncApprovalRequest
             otherwise:
               steps:
-                - toD: ${variables.target['endpointUri']}
+                - toD: direct:${variables.target['camelDirectEndpointName']}
 
 - route:
     id: checkPendingApprovalRoute
@@ -90,6 +112,8 @@
     from:
       uri: direct:map
       steps:
+        - filter:
+            simple: ${headers.DebeziumOperation} != 'd'
         - setVariable:
             description: |
               Stashes temporarily away the metadata import payload in order to store the mapping file inside the body.
@@ -97,8 +121,8 @@
             simple: ${body}
         - setBody:
             description: |
-              Attempts to read the mapping CSV file as set from `target.[n].mapping.file` or defaults to empty text.
-            groovy: "variables.target['mapping.file'] ? new File(variables.target['mapping.file']).text : ''"
+              Attempts to read the mapping CSV file as set from `target.[n].resourceMap.file` or defaults to empty text.
+            groovy: "variables.target['resourceMap.file'] ? new File(variables.target['resourceMap.file']).text : ''"
         - unmarshal:
             csv:
               captureHeaderRecord: true
@@ -108,13 +132,13 @@
               Sets the variable to the `target.[n].mapping.matchOnColumn` app property or, if undefined, defaults to the 
               first column in the CSV.
             name: matchOnField
-            groovy: "variables.target['mapping.matchOnColumn'] ?: (headers.CamelCsvHeaderRecord[0] ?: '')"
+            groovy: "headers.CamelCsvHeaderRecord.find{it.startsWith('source_')} ?: 'source_null'"
         - setVariable:
             description: Pulls out the matching field from the metadata import payload.
             name: matchOnResult
             groovy: |
               if (body.isEmpty()) return ''
-              exp = camelContext.resolveLanguage('jsonpath').createExpression("\$.*[0].${variables.matchOnField}")
+              exp = camelContext.resolveLanguage('jsonpath').createExpression("\$.*[0].${variables.matchOnField - 'source_'}")
               exp.setResultType(String.class)
               exp.evaluate(org.apache.camel.builder.ExchangeBuilder.anExchange(camelContext).withBody(variables.metadataImport).build(), String.class)
         - transform:
@@ -122,10 +146,10 @@
             groovy: |
               rules = { body.findAll { it[variables.matchOnField] == variables.matchOnResult}.collect { map ->
                 map.findAll { it.key != variables.matchOnField}.collect { k, v -> 
-                  """(if .[0].value[0].${variables.matchOnField} == "${variables.matchOnResult}" then .[0].value[0].$k = "$v" else . end)""" 
+                  """.[0].value[0].$k = "$v" """ 
                   }.join(' | ')
               }[0] }      
-              "to_entries | ${rules() ?: '.'} | from_entries"
+              """to_entries | (if .[0].value[0].${variables.matchOnField - 'source_'} == "${variables.matchOnResult}" then ${rules() ?: '.'} else . end) | from_entries"""
         - setVariable:
             name: jqExpression
             simple: ${body}
