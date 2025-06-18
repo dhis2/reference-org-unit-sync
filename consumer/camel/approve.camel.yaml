@@ -16,9 +16,9 @@
         httpMethodRestrict: GET
       steps:
         - to:
-            description: Get the decrypted query parameters.
+            description: Decrypts the query parameters.
             uri: direct:decryptQueryParams
-        - to: jms:queue:approved/sync/1?exchangePattern=InOnly
+        - to: jms:queue:approvals?exchangePattern=InOnly
         - setBody:
             constant: Processing...
 
@@ -27,9 +27,10 @@
     description: Dequeues the approval message and unpacks its data before completing the synchronisation.
     routeConfigurationId: deadLetterQueueRouteConfig
     from:
-      uri: jms:queue:approved/sync/1
+      uri: jms:queue:approvals
       parameters:
         transacted: true
+        maxConcurrentConsumers: 1
       steps:
         - setVariable:
             name: id
@@ -43,9 +44,9 @@
                 'dhis2ApiUsername': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.dhis2ApiUsername').orElse(null),
                 'dhis2ApiPassword': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.dhis2ApiPassword').orElse(null),
                 'dhis2ApiPersonalAccessToken': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.dhis2ApiPersonalAccessToken').orElse(null),
-                'idScheme': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.idScheme').orElse(TargetsSplitter.IMPORT_UID_SCHEME),
-                'endpointUri': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.endpointUri').orElse(TargetsSplitter.DHIS2_ENDPOINT_URI),
-                'messageConversationUserId': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.messageConversationUserId').orElse(TargetsSplitter.ADMIN_DHIS2_USER_ID)
+                'idScheme': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.idScheme').orElse(TargetRouteTemplateParameterSource.IMPORT_UID_SCHEME),
+                'camelDirectEndpointName': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.camelDirectEndpointName').orElse(TargetRouteTemplateParameterSource.DHIS2_DIRECT_ENDPOINT_NAME),
+                'messageConversationUserId': camelContext.propertiesComponent.resolveProperty('target.' + headers.targetIndex + '.messageConversationUserId').orElse(TargetRouteTemplateParameterSource.ADMIN_DHIS2_USER_ID)
               ]
         - toD:
             description: Fetches the draft metadata import from the target DHIS2 data store.
@@ -59,13 +60,9 @@
         - convertBodyTo:
             description: Converts the stream into a string.
             type: String
-        - setVariable:
-            description: Flags the message as approved so that it does not repeat the approval workflow.
-            name: isApproved
-            constant: "true"
         - toD:
             description: Synchronise the resource on the target server.
-            uri: ${variables.target['endpointUri']}
+            uri: direct:${variables.target['camelDirectEndpointName']}
         - setBody:
             description: Removes any left-over data in the body before creating a fresh HTTP request.
             simple: ${null}
@@ -108,15 +105,12 @@
             uri: direct:encryptQueryParams
             variableReceive: dataQueryParam
         - setVariable:
-            description: Sets a variable to the app's HTTP port number.
-            name: camelJbangPlatformHttpPort
-            constant: "{{camel.server.port}}"
-        - setVariable:
             description: | 
-              Sets a variable to the app's user-defined hostname. If the user has not specified a hostname, then it 
-              attempts to resolve the hostname itself.
-            name: hostname
-            groovy: camelContext.propertiesComponent.resolveProperty('hostname').orElse(org.apache.camel.util.InetAddressUtil.getLocalHostNameSafe())
+              Sets a variable to the app's user-defined base URL. If the user has not specified a base URL, then it 
+              attempts to resolve the base URL itself.
+            name: approveUrl
+            groovy: >
+              camelContext.propertiesComponent.resolveProperty('approve.url').orElse('http://' + org.apache.camel.util.InetAddressUtil.getLocalHostNameSafe() + ':' + {{camel.server.port}})
         - to:
             description: Materialises a template to create the ticket body.
             uri: freemarker:templates/ticketBody.ftl

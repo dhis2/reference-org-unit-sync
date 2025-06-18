@@ -1,6 +1,6 @@
 // customise here your org unit group set transformation for the target
 {
   "organisationUnitGroupSets": [
-    cml.variable('orgUnitGroupSet')
+    body
   ]
 }

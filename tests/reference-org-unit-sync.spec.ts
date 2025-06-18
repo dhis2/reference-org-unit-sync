@@ -11,21 +11,39 @@ test.beforeEach(async function({
             "Authorization": "Basic YWRtaW46ZGlzdHJpY3Q="
         }
     });
+
+    const orgUnit = await request.post("http://localhost:8080/api/metadata?importStrategy=CREATE_AND_UPDATE", {
+        data: {
+            organisationUnits: [{
+                code: "Root",
+                id: "at6UHUQatSo",
+                name: "Root",
+                openingDate: "2020-01-01",
+                shortName: "Root"
+            }]
+        },
+        headers: {
+            "Authorization": "Basic YWRtaW46ZGlzdHJpY3Q=",
+            "Content-Type": "application/json"
+        }
+    });
+    expect(orgUnit.status()).toBe(200);
 });
 
 test("has created org unit synced", async function({
     request
 }) {
-
     const orgUnit = await request.post("http://localhost:8080/api/metadata?importStrategy=CREATE_AND_UPDATE", {
         data: {
             organisationUnits: [{
                 code: "ACME",
-
                 id: "b7HFMWjj3im",
                 name: "Acme",
                 openingDate: "2020-01-01",
-                shortName: "Acme"
+                shortName: "Acme",
+                parent: {
+                    id: "at6UHUQatSo"
+                }
             }]
         },
         headers: {
@@ -58,6 +76,72 @@ test("has created org unit synced", async function({
     }).toBe(200);
 });
 
+test("has updated org unit synced", async function({
+    request
+}) {
+    const orgUnit = await request.post("http://localhost:8080/api/metadata?importStrategy=CREATE_AND_UPDATE", {
+        data: {
+            organisationUnits: [{
+                code: "FOO",
+                id: "Cjj0uSTz6kb",
+                name: "Foo",
+                openingDate: "2020-01-01",
+                shortName: "Foo",
+                parent: {
+                    id: "at6UHUQatSo"
+                }
+            }]
+        },
+        headers: {
+            "Authorization": "Basic YWRtaW46ZGlzdHJpY3Q=",
+            "Content-Type": "application/json"
+        }
+    });
+    expect(orgUnit.status()).toBe(200);
+
+    const importedOrgUnit = await request.post("http://localhost:8080/api/metadata?importStrategy=CREATE_AND_UPDATE", {
+        data: {
+            organisationUnits: [{
+                code: "BAR",
+                id: "Cjj0uSTz6kb",
+                name: "Bar",
+                openingDate: "2020-01-01",
+                shortName: "Bar",
+                parent: {
+                    id: "at6UHUQatSo"
+                }
+            }]
+        },
+        headers: {
+            "Authorization": "Basic YWRtaW46ZGlzdHJpY3Q=",
+            "Content-Type": "application/json"
+        }
+    });
+    expect(importedOrgUnit.status()).toBe(200);
+
+    await expect.poll(async function() {
+        const response = await request.get("http://localhost:8081/api/organisationUnits/Cjj0uSTz6kb", {
+            headers: {
+                "Authorization": "Basic YWRtaW46ZGlzdHJpY3Q=",
+                "Content-Type": "application/json"
+            }
+        });
+        return response.status();
+    }).toBe(404);
+
+    await expect.poll(async function() {
+        const response = await request.get("http://localhost:8082/api/organisationUnits/Cjj0uSTz6kb", {
+            headers: {
+                "Authorization": "Basic YWRtaW46ZGlzdHJpY3Q=",
+                "Content-Type": "application/json"
+            }
+        });
+        return (await response.json()).code;
+    }, {
+        timeout: 70000
+    }).toBe('BAR');
+});
+
 test("has deleted org unit synced", async function({
     request
 }) {
@@ -69,7 +153,10 @@ test("has deleted org unit synced", async function({
                 id: "fdc6uOvgoji",
                 name: "EvilCorp",
                 openingDate: "2020-01-01",
-                shortName: "EvilCorp"
+                shortName: "EvilCorp",
+                parent: {
+                    id: "at6UHUQatSo"
+                }
             }]
         },
         headers: {

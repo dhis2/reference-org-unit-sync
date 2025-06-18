@@ -5,12 +5,17 @@
     from:
       uri: direct:dhis2Target
       steps:
+        - log: "Syncing resource [${variables.id}]..."
         - choice:
             when:
-              - simple: ${headers.DebeziumOperation} == 'd'
+              - simple: ${headers.DebeziumOperation} == 'd' && ${headers.DebeziumSourceTable} == 'organisationunit'
+                description: |
+                  Routes the message to the route that deletes the organisation unit when the Debezium operation is a 
+                  delete and the table where the operation happened is "organisationunit".
                 steps:
-                  - to: direct:deleteResource
+                  - to: direct:deleteOrgUnit
             otherwise:
+              description: Routes the message to the route that imports the metadata resource.
               steps:
                 - to: direct:importMetadata
 
@@ -49,11 +54,11 @@
                     exceptionType: java.lang.Exception
 
 - route:
-    id: deleteResourceRoute
+    id: deleteOrgUnitRoute
     description: Deletes an org unit on the target server.
     routeConfigurationId: deadLetterQueueRouteConfig
     from:
-      uri: direct:deleteResource
+      uri: direct:deleteOrgUnit
       steps:
         - doTry:
             steps:
