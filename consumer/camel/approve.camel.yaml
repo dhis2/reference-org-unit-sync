@@ -8,7 +8,7 @@
         id: cryptoDataFormat
 
 - route:
-    id: approveSyncRoute
+    id: acceptApprovedSyncRoute
     description: Listens for HTTP requests that approve synchronisations, and pushes them onto a queue.
     from:
       uri: "platform-http:/approve"
