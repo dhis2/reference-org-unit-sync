@@ -29,11 +29,11 @@ This is an example meant to guide you in developing your own organisation unit s
    3. Install the [Camel plugin for JBang](https://camel.apache.org/manual/camel-jbang.html#_installation)
 5. Run the publisher app:
    1. Edit `application.properties` as shown in the [instructions](#publisher-configuration). This file is located in the `publisher` directory within the cloned `reference-org-unit-sync` repository
-   2. From a terminal, change the current directory to `reference-org-unit-sync/publisher` and execute `camel run`
+   2. From a terminal, change the current directory to `reference-org-unit-sync/publisher` and execute `camel run application.properties`
    3. Watch the app's standard output (e.g., terminal or log file) to confirm that no errors occurred during start-up
 6. Run the consumer app:
    1. Edit `application.properties` as shown in the [instructions](#consumer-configuration). This file is located in the `consumer` directory within the cloned `reference-org-unit-sync` repository
-   2. From a terminal, change the current directory to `reference-org-unit-sync/consumer` and execute `camel run`
+   2. From a terminal, change the current directory to `reference-org-unit-sync/consumer` and execute `camel run application.properties`
    3. Watch the app's standard output (e.g., terminal or log file) to confirm that no errors occurred during start-up
 7. Open the maintenance app in the source DHIS2 server and add or update an organisation unit, an organisation group, or an organisation group set.
 8. Allow a few seconds for the synchronisation with the target server/s to occur.
