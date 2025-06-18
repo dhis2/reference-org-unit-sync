@@ -294,13 +294,13 @@ From the [Artemis management console](https://activemq.apache.org/components/art
 
 ![browse dead-letter queue](docs/browse-dlq.png)
 
-The error causing the synchronisation to fail can be analysed from the log file of the consumer app. To replay a failed synchronisation, while on the management console page, select the failed message from the `DLQ` queue and move it to the `delta/sync/1` queue: 
+The error causing the synchronisation to fail can be analysed from the log file of the consumer app. To replay a failed synchronisation, while on the management console page, select the failed message from the `DLQ` queue and move it to the multicast queue delivering synchronisations to the target server: 
 
 ![move message](docs/move-message.png)
 
 If synchronisation fails again because the error persists or a different error occurs, then the newly failed synchronisation is pushed to the dead-letter queue.
 
-On a standalone ActiveMQ Artemis broker, the management console is typically available on port _8161_. By default, however, the management console is unavailable because the app runs an embedded Artemis instance. It is strongly recommended to replace the embedded broker with a standalone one for operational (e.g., observability) and security reasons. Once you have a standalone broker running, you will need to set both the producer and consumer app parameters `camel.component.jms.connection-factory.brokerURL` to the standalone broker address.
+On a standalone ActiveMQ Artemis broker, the management console is typically available on port _8161_. By default, however, the management console is unavailable because the publisher runs an embedded Artemis instance. It is strongly recommended to replace the embedded broker with a standalone one for operational (e.g., observability) and security reasons. Once you have a standalone broker running, you will need to set both the producer and consumer app parameters `camel.component.jms.connection-factory.brokerURL` to the standalone broker address.
 
 ### Metadata Resource Mapping
 
