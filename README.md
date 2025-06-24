@@ -7,6 +7,7 @@
 5. [Consumer Configuration](#consumer-configuration)
 6. [Features](#features)
 7. [Adaptation](#adaptation)
+8. [Support](#support)
 
 ## What is this implementation?
 
@@ -370,3 +371,7 @@ Follow the subsequent steps for synchronising new resources like DHIS2 users:
 4. Author a Camel route in the `publisher/capture.camel.yaml` config for fetching the changed resource from the source DHIS2 Web API. The route must have a [`direct`](https://camel.apache.org/components/next/direct-component.html) [`from`](https://camel.apache.org/components/next/eips/from-eip.html) endpoint where the endpoint name matches the source table that the route is targeting. In other words, if the route should capture changes from the `user` table, then the `from` endpoint URI needs to be set to `direct:user`. Note that a filter for dropping delete operations should be used at the beginning of your route if you do not want to support delete synchronisations.
 
 5. Author another Camel route in a new YAML config within the `consumer` directory that transforms the fetched resource into a metadata import payload. It is suggested that the [`consumer/camel/orgUnitSync.camel.yaml` file](consumer/camel/orgUnitSync.camel.yaml) is used as an example for authoring the route.
+
+# Support
+
+Questions or feedback about this reference implementation can be posted on the [DHIS2 Community of Practice](https://community.dhis2.org/). Code contributions in the form of [pull requests](https://github.com/dhis2/reference-org-unit-sync/pulls) are more than welcome.
