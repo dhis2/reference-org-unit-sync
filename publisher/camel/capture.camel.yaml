@@ -53,7 +53,9 @@
             description: |
               Dynamically selects the route to fetch the captured change based on the name of the source table.
             uri: direct:${headers.DebeziumSourceTable}
-        - to: jms:topic:metadata
+        - to:
+            description: Publishes captured change.
+            uri: jms:topic:metadata
 
 - route:
     id: fetchOrgUnitRoute
@@ -66,8 +68,10 @@
         - choice:
             when:
               - simple: ${headers.DebeziumOperation} != 'd'
+                description: Executes condition when the synchronisation is not a delete operation.
                 steps:
                   - toD:
+                      description: Fetches the org unit from the source DHIS2 server.
                       uri: dhis2:get/resource
                       parameters:
                         path: organisationUnits/${header.id}
@@ -86,12 +90,10 @@
       uri: direct:orgunitgroup
       steps:
         - filter:
-            description: Drops delete synchronisations
+            description: Drops delete synchronisations.
             simple: ${headers.DebeziumOperation} != 'd'
-        - setVariable:
-            name: id
-            simple: ${body}
         - toD:
+            description: Fetches the org unit group from the source DHIS2 server.
             uri: dhis2:get/resource
             parameters:
               path: organisationUnitGroups/${header.id}
@@ -110,12 +112,10 @@
       uri: direct:orgunitgroupset
       steps:
         - filter:
-            description: Drops delete synchronisations
+            description: Drops delete synchronisations.
             simple: ${headers.DebeziumOperation} != 'd'
-        - setVariable:
-            name: id
-            simple: ${body}
         - toD:
+            description: Fetches the org unit group set from the source DHIS2 server.
             uri: dhis2:get/resource
             parameters:
               path: organisationUnitGroupSets/${header.id}

@@ -21,6 +21,10 @@ import java.security.Security;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 
+/**
+ * Checks if the key store exists, and if not, create one while also generating an AES key to be used for
+ * encrypting/decrypting the approval link query params.
+ */
 public class KeyStoreGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger(KeyStoreGenerator.class);
 

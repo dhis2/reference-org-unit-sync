@@ -10,6 +10,10 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Provides the parameters for creating a subscriber route per target in the `metadataSubscriberRouteTemplate` route
+ * template.
+ */
 @BindToRegistry
 public class TargetRouteTemplateParameterSource implements RouteTemplateParameterSource {
 

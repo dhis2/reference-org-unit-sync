@@ -1,6 +1,7 @@
 - route:
     id: dhis2TargetRoute
-    description: Determines the type of synchronisation to be performed on the target server.
+    description: |
+      Routes the metadata payload to the route that will execute the synchronisation operation on the target server.
     routeConfigurationId: deadLetterQueueRouteConfig
     from:
       uri: direct:dhis2Target
@@ -27,9 +28,11 @@
       uri: direct:importMetadata
       steps:
         - setHeader:
+            description: Sets the HTTP query params for the DHIS2 request.
             name: CamelDhis2.queryParams
             groovy: "['importStrategy': 'CREATE_AND_UPDATE', 'idScheme': variables.target.idScheme]"
         - toD:
+            description: Transmits a request to the target DHIS2 server to import the metadata.
             uri: dhis2:post/resource
             parameters:
               path: metadata
@@ -37,19 +40,31 @@
               username: ${variables.target['dhis2ApiUsername']}
               password: ${variables.target['dhis2ApiPassword']}
               personalAccessToken: ${variables.target['personalAccessToken']}
-        - removeHeader: CamelDhis2.queryParams
+        - removeHeader:
+            description: |
+              Removes the HTTP query params from the previous request so that it does not interfere with any subsequent
+              HTTP requests .
+            name: CamelDhis2.queryParams
         - unmarshal:
+            description: Deserialises the JSON resource into a `java.util.Map`.
             json: { }
         - choice:
             when:
               - simple: "${body['status']} == 'SUCCESS' || ${body['status']}  == 'OK'"
+                description: |
+                  Executes the condition when the target imports the metadata successfully. Compatible with older 
+                  versions of DHIS2.
                 steps:
                   - log: Successfully synced resource [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]
                   - to: direct:reportSuccess
             otherwise:
               steps:
-                - to: direct:reportFailure
+                - to:
+                    description: Notifies target DHIS2 user of a failed synchronisation.
+                    uri: direct:reportFailure
                 - throwException:
+                    description: |
+                      Forces an exception so that the failed synchronisation is pushed into a dead-letter queue.
                     message: "Error while syncing resource [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]: ${body}"
                     exceptionType: java.lang.Exception
 
@@ -63,6 +78,7 @@
         - doTry:
             steps:
               - toD:
+                  description: Transmits a request to the target to delete the org unit.
                   uri: dhis2:delete/resource
                   parameters:
                     path: "organisationUnits/${variables.id}"
@@ -71,7 +87,9 @@
                     password: ${variables.target['dhis2ApiPassword']}
                     personalAccessToken: ${variables.target['personalAccessToken']}
               - log: Synced deleted org unit [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]
-              - to: direct:reportSuccess
+              - to:
+                  description: Notifies target DHIS2 user of successful synchronisation.
+                  uri: direct:reportSuccess
               - doCatch:
                   exception:
                     - org.hisp.dhis.integration.sdk.api.RemoteDhis2ClientException
@@ -104,10 +122,13 @@
               password: ${variables.target['dhis2ApiPassword']}
               personalAccessToken: ${variables.target['personalAccessToken']}
         - unmarshal:
+            description: Deserialises the JSON resource into a `java.util.Map`.
             json: { }
         - choice:
             when:
               - simple: "${body['status']} != 'SUCCESS' && ${body['status']}  != 'OK'"
+                description: |
+                  Executes the condition when the target returns an error. Compatible with older versions of DHIS2.
                 steps:
                   - log:
                       loggingLevel: ERROR
@@ -135,10 +156,13 @@
               password: ${variables.target['dhis2ApiPassword']}
               personalAccessToken: ${variables.target['personalAccessToken']}
         - unmarshal:
+            description: Deserialises the JSON resource into a `java.util.Map`.
             json: { }
         - choice:
             when:
               - simple: "${body['status']} != 'SUCCESS' && ${body['status']}  != 'OK'"
+                description: |
+                  Executes the condition when the target returns an error. Compatible with older versions of DHIS2.
                 steps:
                   - log:
                       loggingLevel: ERROR

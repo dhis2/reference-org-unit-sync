@@ -11,6 +11,7 @@
     id: acceptApprovedSyncRoute
     description: Listens for HTTP requests that approve synchronisations, and pushes them onto a queue.
     from:
+      description: Accepts GET HTTP requests with the `/approve` URL path.
       uri: "platform-http:/approve"
       parameters:
         httpMethodRestrict: GET
@@ -18,21 +19,28 @@
         - to:
             description: Decrypts the query parameters.
             uri: direct:decryptQueryParams
-        - to: jms:queue:approvals?exchangePattern=InOnly
+        - to:
+            description: Pushes the decrypted query params headers to a queue without waiting for an async response.
+            uri: jms:queue:approvals
+            parameters:
+              exchangePattern: InOnly
         - setBody:
+            description: Sets the HTTP response body.
             constant: Processing...
 
 - route:
     id: syncApprovedRoute
-    description: Dequeues the approval message and unpacks its data before completing the synchronisation.
+    description: Dequeues the decrypted query params headers and resolves target references before completing the synchronisation.
     routeConfigurationId: deadLetterQueueRouteConfig
     from:
+      description: Dequeues the decrypted query params.
       uri: jms:queue:approvals
       parameters:
         transacted: true
         maxConcurrentConsumers: 1
       steps:
         - setVariable:
+            description: Sets the variable `id` to the metadata resource ID received in the query param.
             name: id
             simple: ${headers.resourceId}
         - setVariable:
@@ -64,7 +72,7 @@
             description: Synchronise the resource on the target server.
             uri: direct:${variables.target['camelDirectEndpointName']}
         - setBody:
-            description: Removes any left-over data in the body before creating a fresh HTTP request.
+            description: Removes any left-over data in the body before creating a HTTP request.
             simple: ${null}
         - toD:
             description: | 
@@ -101,7 +109,7 @@
               password: ${variables.target['dhis2ApiPassword']}
               personalAccessToken: ${variables.target['personalAccessToken']}
         - to:
-            description: Gets the encrypted query params for the approval link and stashes them in a variable.
+            description: Encrypts the query params for the approval link and stashes them inside a variable.
             uri: direct:encryptQueryParams
             variableReceive: dataQueryParam
         - setVariable:
@@ -161,6 +169,7 @@
       uri: direct:decryptQueryParams
       steps:
         - setBody:
+            description: Sets the body to the encrypted value contained within the `data` query param.
             simple: ${headers.data}
         - unmarshal:
             description: Base64 decodes the encrypted query params.
