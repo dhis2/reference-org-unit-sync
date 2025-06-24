@@ -42,7 +42,7 @@
                 ]
           - toD:
               description: |
-                Dynamically sends the capture change to a route based on the name of the source table.
+                Dynamically sends the captured change to a route based on the name of the source table.
               uri: direct:${headers.DebeziumSourceTable}
 
 - route:
