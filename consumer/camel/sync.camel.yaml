@@ -6,6 +6,11 @@
         target resulting in a subscriber per target.
       routeConfigurationId: deadLetterQueueRouteConfig
       from:
+        description: |
+          Consumes the captured changes from a multicast queue. This endpoint registers itself as a durable subscriber so 
+          that published changes are not lost in the event this consumer is offline. Thanks to `acknowledgementModeName` 
+          being set to `CLIENT_ACKNOWLEDGE`, the captured change is not formally consumed until the synchronisation has 
+          been processed.
         uri: jms:topic:metadata
         parameters:
           clientId: "{{clientId}}"
@@ -14,9 +19,12 @@
           maxConcurrentConsumers: 1
         steps:
           - setVariable:
+              description: Assigns the metadata resource ID to a variable.
               name: id
               header: id
           - setVariable:
+              description: |
+                Inserts the target parameters into a `java.util.Map` object and assigns the object to a variable.
               name: target
               groovy: |
                 [
@@ -34,7 +42,7 @@
                 ]
           - toD:
               description: |
-                Dynamically selects the route to send the captured change based on the name of the source table.
+                Dynamically sends the capture change to a route based on the name of the source table.
               uri: direct:${headers.DebeziumSourceTable}
 
 - route:
@@ -49,9 +57,13 @@
       uri: direct:sync
       steps:
         - filter:
+            description: Filters out sync operations that are not included in the `DebeziumOperation` header.
             groovy: variables.target.allowedOperations.split(',').contains(headers.DebeziumOperation)
-        - to: direct:map
         - to:
+            description: Applies any mappings to the metadata import payload.
+            uri: direct:map
+        - to:
+            description: Receives a result from the route and assigns it to a variable.
             uri: direct:checkPendingApproval
             variableReceive: isPendingApproval
         - choice:
@@ -113,6 +125,7 @@
       uri: direct:map
       steps:
         - filter:
+            description: Filters out delete sync operations since a delete operation does not import data.
             simple: ${headers.DebeziumOperation} != 'd'
         - setVariable:
             description: |
@@ -124,33 +137,34 @@
               Attempts to read the mapping CSV file as set from `target.[n].resourceMap.file` or defaults to empty text.
             groovy: "variables.target['resourceMap.file'] ? new File(variables.target['resourceMap.file']).text : ''"
         - unmarshal:
+            description: Deserialises the mapping CSV file into a list of maps.
             csv:
               captureHeaderRecord: true
               useOrderedMaps: true
         - setVariable:
             description: |
-              Sets the variable to the `target.[n].mapping.matchOnColumn` app property or, if undefined, defaults to the 
-              first column in the CSV.
-            name: matchOnField
+              Assigns the CSV column name prefixed with 'source_' to a variable. 
+            name: matchOnColumnName
             groovy: "headers.CamelCsvHeaderRecord.find{it.startsWith('source_')} ?: 'source_null'"
         - setVariable:
-            description: Pulls out the matching field from the metadata import payload.
+            description: Pulls out from the metadata import payload a value that has its field name matching the CSV source column name.
             name: matchOnResult
             groovy: |
               if (body.isEmpty()) return ''
-              exp = camelContext.resolveLanguage('jsonpath').createExpression("\$.*[0].${variables.matchOnField - 'source_'}")
+              exp = camelContext.resolveLanguage('jsonpath').createExpression("\$.*[0].${variables.matchOnColumnName - 'source_'}")
               exp.setResultType(String.class)
               exp.evaluate(org.apache.camel.builder.ExchangeBuilder.anExchange(camelContext).withBody(variables.metadataImport).build(), String.class)
         - transform:
             description: Transforms the mappings into a JQ expression.
             groovy: |
-              rules = { body.findAll { it[variables.matchOnField] == variables.matchOnResult}.collect { map ->
-                map.findAll { it.key != variables.matchOnField}.collect { k, v -> 
+              rules = { body.findAll { it[variables.matchOnColumnName] == variables.matchOnResult}.collect { map ->
+                map.findAll { it.key != variables.matchOnColumnName}.collect { k, v -> 
                   """.[0].value[0].$k = "$v" """ 
                   }.join(' | ')
               }[0] }      
-              """to_entries | (if .[0].value[0].${variables.matchOnField - 'source_'} == "${variables.matchOnResult}" then ${rules() ?: '.'} else . end) | from_entries"""
+              """to_entries | (if .[0].value[0].${variables.matchOnColumnName - 'source_'} == "${variables.matchOnResult}" then ${rules() ?: '.'} else . end) | from_entries"""
         - setVariable:
+            description: Assigns a variable the JQ expression for mapping fields.
             name: jqExpression
             simple: ${body}
         - setBody:

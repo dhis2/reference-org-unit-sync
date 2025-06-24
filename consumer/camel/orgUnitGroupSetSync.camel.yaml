@@ -1,18 +1,23 @@
 - route:
     id: syncOrgUnitGroupSetRoute
     description: |
-      Transforms the org unit group set into a metadata import payload before routing the payload to each target server
+      Transforms the org unit group set resource into a metadata import payload before continuing with the synchronisation 
+      operation.
     routeConfigurationId: deadLetterQueueRouteConfig
     from:
       uri: direct:orgunitgroupset
       steps:
         - log: "Preparing to sync org unit group set [${variables.id}]..."
         - unmarshal:
+            description: Deserialises the JSON resource into a `java.util.Map`
             json: { }
         - transform:
+            description: Converts the message body into a metadata import payload.
             datasonnet:
               outputMediaType: application/x-java-object
               resultType: java.util.Map
               bodyMediaType: application/x-java-object
               expression: resource:classpath:datasonnet/orgUnitGroupSet.ds
-        - to: direct:sync
+        - to:
+            description: Continues the synchronisation operation.
+            uri: direct:sync

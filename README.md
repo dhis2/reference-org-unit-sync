@@ -307,7 +307,7 @@ On a standalone ActiveMQ Artemis broker, the management console is typically ava
 
 ### Metadata Resource Mapping
 
-It is entirely possible that the metadata resources in the target DHIS2 implementations to synchronise are completely out of sync from the source DHIS2 server. Without matching metadata identifiers like the `name` or `id`, it is impossible for a metadata sync solution to locate the target metadata resource to synchronise. For such scenarios, the implementer should author a metadata resource map and then reference it from the `target.[n].resourceMap.file` consumer app parameter. 
+It is entirely possible that the metadata resources in the target DHIS2 implementations to synchronise are completely out of sync from the source DHIS2 server. Without matching metadata identifiers like the `name` or `id`, it becomes impossible for a metadata sync solution to locate the target metadata resource to synchronise. For such scenarios, the implementer should author a metadata resource map and then reference it from the `target.[n].resourceMap.file` consumer app parameter. 
 
 A resource map is a comma-delimited CSV with headers that defines mappings for target metadata resources. The CSV needs to have one column prefixed with `source_` denoting the source metadata identifier that a mapping will match on. All other columns in the CSV denote the fields that the source metadata resource will be mapped to.
 
@@ -331,20 +331,20 @@ The preceding CSV maps the source organisation unit having the name "1St Omo She
 
 The organisation unit sync reference implementation should be adapted to fit your local needs. A good understanding of [Apache Camel](https://camel.apache.org/) is a prerequisite to customising the application. The [DHIS2 developer documentation](https://developers.dhis2.org/docs/integration/apache-camel) provides a gentle introduction to Apache Camel. What follows are typical places where one would want to customise in their implementation:
 
-### Non-DHIS2 target (draft)
+### Non-DHIS2 target
 
 Despite the reference consumer being geared towards synchronising DHIS2 targets, the app can be adapted to support non-DHIS2 servers. This adaptation would require the implementer to author one or more Camel route that synchronise the new target type. Some points to consider when implementing new target types:
 
-* The [`camel/dhis2target.camel.yaml` file](camel/capture.camel.yaml)) should serve as a guide for authoring the custom Camel routes synchronising the non-DHIS2 target. 
-* It is important to elect one of the new custom routes to be an entry point for synchronisation updates. The elected route should have a `from` [`direct` endpoint](https://camel.apache.org/components/next/direct-component.html) URI. This endpoint name should then be referenced from the `target.[n].camelDirectEndpointName` app parameter so that the elected route receives the synchronisation updates.
+* The [`consumer/camel/dhis2Target.camel.yaml` file](consumer/camel/dhis2Target.camel.yaml)) should serve as a guide for authoring the custom Camel routes synchronising the non-DHIS2 target. 
+* It is important to elect one of the new custom routes to be an entry point for synchronisation updates. The elected route should have a `from` [`direct` endpoint](https://camel.apache.org/components/next/direct-component.html) URI. This endpoint name should then be referenced from the `target.[n].camelDirectEndpointName` consumer app parameter so that the elected route receives the synchronisation updates.
 * Files containing Camel routes should have the extension `.camel.yaml` and be located in the `camel` directory.
 * User-defined parameters prefixed with `target.[n].` are accessible from Camel variables. For instance, a user-defined parameter such as `target.1.myProperty` can be accessed from a route with the [Simple expression](https://camel.apache.org/components/next/languages/simple-language.html): `${variables.target['myProperty']}`.
 
 ### Approval workflow
 
-Adapting the current approval workflow means changing the [`camel/approve.camel.yaml` file](camel/approve.camel.yaml). The reference implementation piggies back on DHIS2's data store and ticketing system to implement the approval workflow but it is more likely that you would need to change the `dhis2` Camel endpoints in the `camel/approve.camel.yaml` file such that they open tickets and save draft metadata imports in your bespoke solutions. Besides replacing the `dhis2` Camel endpoints, the `steps` within `approve.camel.yaml` might need to be modified to fit your approval workflow. Read the route and step descriptions within `approve.camel.yaml` to understand how the current workflow is orchestrated.
+Adapting the current approval workflow means changing the [`consumer/camel/approve.camel.yaml` file](consumer/camel/approve.camel.yaml). The reference implementation piggies back on DHIS2's data store and ticketing system to implement the approval workflow but it is more likely that you would need to change the `dhis2` Camel endpoints in the `consumer/camel/approve.camel.yaml` file such that they open tickets and save draft metadata imports in your bespoke solutions. Besides replacing the `dhis2` Camel endpoints, the `steps` within `approve.camel.yaml` might need to be modified to fit your approval workflow. Read the route and step descriptions within `approve.camel.yaml` to understand how the current workflow is orchestrated.
 
-### Synchronised resources (draft)
+### Synchronised resources
 
 Follow the subsequent steps for synchronising new resources like DHIS2 users: 
 
@@ -362,10 +362,6 @@ Follow the subsequent steps for synchronising new resources like DHIS2 users:
 
 3. If deletes are to be synchronised or synchronisations might require approval, then the replica identity of the relevant tables need to be set to full. For instance: `ALTER TABLE user REPLICA IDENTITY FULL`.
 
-4. Author a Camel route in a new YAML file that fetches the changed resource from the source DHIS2 Web API and then proceeds to transform the fetched resource into a metadata import payload. It is suggested that the [`camel/orgUnitSync.camel.yaml` file](camel/orgUnitSync.camel.yaml) is used as an example for authoring the route. However, note that a filter for dropping delete operations should be used at the beginning of your route if you do not want to support delete synchronisations.
+4. Author a Camel route in the `publisher/capture.camel.yaml` config for fetching the changed resource from the source DHIS2 Web API. The route must have a [`direct`](https://camel.apache.org/components/next/direct-component.html) [`from`](https://camel.apache.org/components/next/eips/from-eip.html) endpoint where the endpoint name matches the source table that the route is targeting. In other words, if the route should capture changes from the `user` table, then the `from` endpoint URI needs to be set to `direct:user`. Note that a filter for dropping delete operations should be used at the beginning of your route if you do not want to support delete synchronisations.
 
-5. The entry point route receiving the captured change must have a [`direct`](https://camel.apache.org/components/next/direct-component.html) [`from`](https://camel.apache.org/components/next/eips/from-eip.html) endpoint where the name matches the source table that the route is targeting. In other words, if the route should capture changes from the `user` table, then the `from` endpoint URI needs to be set to `direct:user`.
-
-### Dead-letter queue (draft)
-
-TODO
+5. Author another Camel route in a new YAML config within the `consumer` directory that transforms the fetched resource into a metadata import payload. It is suggested that the [`consumer/camel/orgUnitSync.camel.yaml` file](consumer/camel/orgUnitSync.camel.yaml) is used as an example for authoring the route.
