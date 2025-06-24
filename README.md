@@ -374,4 +374,4 @@ Follow the subsequent steps for synchronising new resources like DHIS2 users:
 
 # Support
 
-Questions or feedback about this reference implementation can be posted on the [DHIS2 Community of Practice](https://community.dhis2.org/). Code contributions in the form of [pull requests](https://github.com/dhis2/reference-org-unit-sync/pulls) are more than welcome.
+Questions or feedback about this reference implementation can be posted on the [DHIS2 Community of Practice](https://community.dhis2.org/). Contributions in the form of [pull requests](https://github.com/dhis2/reference-org-unit-sync/pulls) are more than welcome.
