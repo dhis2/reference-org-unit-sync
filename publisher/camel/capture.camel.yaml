@@ -67,8 +67,8 @@
       steps:
         - choice:
             when:
-              - description: Executes condition when the synchronisation is not a delete operation.
               - simple: ${headers.DebeziumOperation} != 'd'
+                description: Executes condition when the synchronisation is not a delete operation.
                 steps:
                   - toD:
                       description: Fetches the org unit from the source DHIS2 server.

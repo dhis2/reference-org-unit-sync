@@ -50,10 +50,10 @@
             json: { }
         - choice:
             when:
-              - description: |
+              - simple: "${body['status']} == 'SUCCESS' || ${body['status']}  == 'OK'"
+                description: |
                   Executes the condition when the target imports the metadata successfully. Compatible with older 
                   versions of DHIS2.
-              - simple: "${body['status']} == 'SUCCESS' || ${body['status']}  == 'OK'"
                 steps:
                   - log: Successfully synced resource [${variables.id}] with target server [${variables.target['dhis2ApiUrl']}]
                   - to: direct:reportSuccess
@@ -126,9 +126,9 @@
             json: { }
         - choice:
             when:
-              - description: |
-                  Executes the condition when the target returns an error. Compatible with older versions of DHIS2.
               - simple: "${body['status']} != 'SUCCESS' && ${body['status']}  != 'OK'"
+                description: |
+                  Executes the condition when the target returns an error. Compatible with older versions of DHIS2.
                 steps:
                   - log:
                       loggingLevel: ERROR
@@ -160,9 +160,9 @@
             json: { }
         - choice:
             when:
-              - description: |
-                  Executes the condition when the target returns an error. Compatible with older versions of DHIS2.
               - simple: "${body['status']} != 'SUCCESS' && ${body['status']}  != 'OK'"
+                description: |
+                  Executes the condition when the target returns an error. Compatible with older versions of DHIS2.
                 steps:
                   - log:
                       loggingLevel: ERROR
