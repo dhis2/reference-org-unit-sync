@@ -81,12 +81,12 @@ host dhis2 orgunitsyncapp 10.7.22.18/32 md5
 
 ### Target DHIS2 Server
 
-The target DHIS2 servers are the servers receiving synchronisation updates originating from the primary DHIS2 server. Each of the target server's DHIS2 administrator needs to grant Web API access to the consumer app. Such access should include permissions for: 
+The target DHIS2 servers are the servers receiving synchronisation updates originating from the primary DHIS2 server. Each of the target server's DHIS2 administrator needs to grant Web API access to the consumer app. The DHIS2 user representing the consumer app in the target server should have the following metadata authorities: 
 
-   * Deleting organisation units
-   * Importing organisation units, organisation unit groups, and organisation unit sets.
-   * Creating messages and tickets
-   * Creating and deleting data store entries
+   * Add/Update organisation unit
+   * Delete organisation unit
+   * Add/Update organisation unit group
+   * Add/Update organisation unit group set
 
 ### Publisher
 
