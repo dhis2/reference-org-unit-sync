@@ -135,7 +135,21 @@
               username: ${variables.target['dhis2ApiUsername']}
               password: ${variables.target['dhis2ApiPassword']}
               personalAccessToken: ${variables.target['personalAccessToken']}
-        - log: Sent approval request for syncing resource [${variables.id}] to target server [${variables.target['dhis2ApiUrl']}]
+        - unmarshal:
+            description: Deserialises the JSON resource into a `java.util.Map`.
+            json: { }
+        - choice:
+            when:
+              - simple: "${body['status']} != 'SUCCESS' && ${body['status']}  != 'OK'"
+                description: |
+                  Executes the condition when the target returns an error. Compatible with older versions of DHIS2.
+                steps:
+                  - log:
+                      loggingLevel: ERROR
+                      message: "Error while sending approval request for resource [${variables.id}] to target server [${variables.target['dhis2ApiUrl']}]: ${body}"
+            otherwise:
+              steps:
+                - log: Sent approval request for syncing resource [${variables.id}] to target server [${variables.target['dhis2ApiUrl']}]
 
 - route:
     id: encryptQueryParamsRoute
