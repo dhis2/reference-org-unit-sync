@@ -374,7 +374,7 @@ Follow the subsequent steps for synchronising new resources like DHIS2 users:
 
 ### Running E2E Tests
 
-This project ships with automated end-to-end (E2E) tests to verify the implementation's functionality. These tests should be run, and even extended, following adaptation. The subsequent prerequisites need to be installed before running the tests:
+This project ships with automated end-to-end (E2E) tests written in [Playwright](https://playwright.dev/) to verify the implementation's functionality. These tests should be run, and even extended, following adaptation. The subsequent prerequisites need to be installed before running the tests:
 
 * [Docker Compose](https://docs.docker.com/compose/install/): platform for running DHIS2 and database containers
 * [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/#debian-stable): package manager for installing the test runner
