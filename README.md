@@ -372,6 +372,20 @@ Follow the subsequent steps for synchronising new resources like DHIS2 users:
 
 5. Author another Camel route in a new YAML config within the `consumer` directory that transforms the fetched resource into a metadata import payload. It is suggested that the [`consumer/camel/orgUnitSync.camel.yaml` file](consumer/camel/orgUnitSync.camel.yaml) is used as an example for authoring the route.
 
+### Running E2E Tests
+
+This project ships with automated end-to-end (E2E) tests to verify the implementation's functionality. These tests should be run, and even extended, following adaptation. The subsequent prerequisites need to be installed before running the tests:
+
+* [Docker Compose](https://docs.docker.com/compose/install/): platform for running DHIS2 and database containers
+* [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/#debian-stable): package manager for installing the test runner
+* [Playwright](https://playwright.dev/docs/intro#installing-playwright): end-to-end test runner
+
+To execute the tests, from a terminal:
+
+1. Change to the root directory of the reference org unit sync project
+2. Run `docker compose -f tests/compose.yaml up --wait` to stand up the DHIS2 and database Docker containers
+3. Run `yarn playwright test` to execute the test suite
+
 # Support
 
 Questions or feedback about this reference implementation can be posted on the [DHIS2 Community of Practice](https://community.dhis2.org/). Contributions in the form of [pull requests](https://github.com/dhis2/reference-org-unit-sync/pulls) are more than welcome.
