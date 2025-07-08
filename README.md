@@ -131,7 +131,7 @@ dhis2ApiUrl=https://play.im.dhis2.org/stable-2-41-3/api
 dhis2ApiPersonalAccessToken=d2pat_x2UluDRx2W0KxmRxT6PnTebe1wjx5Eui3079960708
 ```
 
-While it is strongly recommended to authenticate with DHIS2 using the [personal access token](https://docs.dhis2.org/en/develop/using-the-api/dhis-core-version-master/introduction.html#webapi_pat_authentication), you can choose to authenticate with the primary DHIS2 server using [HTTP basic access authentication](https://docs.dhis2.org/en/develop/using-the-api/dhis-core-version-master/introduction.html#webapi_basic_authentication) as shown below:
+While it is strongly recommended to authenticate with DHIS2 using a [personal access token](https://docs.dhis2.org/en/develop/using-the-api/dhis-core-version-master/introduction.html#webapi_pat_authentication) that only allows `GET` API requests, you can choose to authenticate with the primary DHIS2 server using [HTTP basic access authentication](https://docs.dhis2.org/en/develop/using-the-api/dhis-core-version-master/introduction.html#webapi_basic_authentication) as shown below:
 
 ```properties
 dhis2DatabaseHostname=192.178.1.6
