@@ -390,9 +390,19 @@ To execute the tests, from a terminal:
 2. Run `docker compose -f tests/compose.yaml up --wait` to stand up the DHIS2 and database Docker containers
 3. Run `yarn playwright test` to execute the test suite
 
-# Performance
+## Performance
 
-The reference implementation can synchronise arbitrary large change sets, as long as the broker is provisioned accordingly. The broker administrator should ensure that the broker has adequate disk space to persist undelivered changes since Artemis stores the captured change until all the consumer subscribers have acknowledged delivery. The publisher and consumer apps require fairly low memory and disk resources. 4 GB of main memory and 1 GB disk space is more than sufficient to run both the publisher and the consumer apps. Nonetheless, more disk space might be required if the broker is running in embedded mode within the publisher. Moreover, additional memory might be needed for the consumer depending on the amount of target servers it is synchronising. The number of CPU cores required for the apps is as well fairly low. One CPU core per app is recommended, however, additional CPU cores should be considered for the consumer in proportion to the number of target servers it is synchronising.
+The reference implementation can synchronise arbitrary large change sets given the following preconditions are met:
+
+* The [broker](#broker) has adequate disk space to persist undelivered changes. Artemis stores the captured change until all the [consumer subscribers](#consumer) have acknowledged delivery. The result is that the queue will grow if the consumer is offline or lagging behind the published changes.
+
+* The [publisher](#publisher) keeps up with the table changes. If the publisher falls well behind in the write-ahead log (WAL), then the WAL files can grow to such an extent that the database runs out of disk space. If you are on PostgreSQL >= v13, consider setting the [`max_slot_wal_keep_size`](https://www.postgresql.org/docs/current/runtime-config-replication.html#GUC-MAX-SLOT-WAL-KEEP-SIZE) in the PostgreSQL configuration file to specify the maximum size of WAL files that replication slots are allowed to retain in the `pg_wal` directory at checkpoint time. The default setting retains an unlimited amount of WAL files. Setting `max_slot_wal_keep_size` to an appropriate value ensures that you have a safeguard against an unbounded WAL. Nevertheless, `max_slot_wal_keep_size` comes with the caveat that if its threshold is exceeded, then table changes will be lost and the producer will not be able to progress through the WAL. Such situations should be avoided by have observability tools in place which will trigger an alert when:
+   1. the publisher is down for a long period of time, and
+   2. the replication slot retains the WAL over a certain size.
+
+### Hardware Requirements
+
+The publisher and consumer apps require fairly low memory and disk resources. 4 GB of main memory and 1 GB disk space is more than sufficient to run both the publisher and the consumer apps. Nonetheless, more disk space might be required if the broker is running in embedded mode within the publisher. Moreover, additional memory might be needed for the consumer depending on the amount of target servers it is synchronising. The number of CPU cores required for the apps is as well fairly low. One CPU core per app is recommended, however, additional CPU cores should be considered for the consumer in proportion to the number of target servers it is synchronising.
 
 # Support
 
