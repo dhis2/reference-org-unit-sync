@@ -388,7 +388,9 @@ To execute the tests, from a terminal:
 
 1. Change to the root directory of the reference org unit sync project
 2. Run `docker compose -f tests/compose.yaml up --wait` to stand up the DHIS2 and database Docker containers
-3. Run `yarn playwright test` to execute the test suite
+3. Change to the `publisher` directory and execute `camel run application.properties ../tests/publisher.test.properties`
+4. Change to the `consumer` directory and execute `camel run application.properties ../tests/consumer.test.properties`
+5. Run `yarn playwright test` to execute the test suite.
 
 ## Performance
 
