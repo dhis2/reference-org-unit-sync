@@ -7,11 +7,12 @@
 5. [Consumer Configuration](#consumer-configuration)
 6. [Features](#features)
 7. [Adaptation](#adaptation)
-8. [Support](#support)
+8. [Performance](#performance)
+9. [Support](#support)
 
 ## What is this implementation?
 
-A frequent requirement in an architecture with multiple DHIS2 instances is keeping the DHIS2 organisation units synchronised. Consider a DHIS2 server acting as a master facility registry. Such a server would typically need to have its organisation unit changes replicated to other servers. This reference, event-driven implementation reliably synchronises the organisation units of a primary DHIS2 server with one or more DHIS2 servers. In particular, it performs one-way synchronisation of the subsequent DHIS2 resources:
+A frequent requirement in an architecture with multiple DHIS2 instances is keeping the DHIS2 organisation units synchronised. Consider a DHIS2 server acting as a master facility registry. Such a server would typically need to have its organisation unit changes replicated to other servers. This scalable, event-driven, reference implementation reliably synchronises the organisation units of a primary DHIS2 server with one or more secondary DHIS2 servers. In particular, it performs one-way synchronisation of the subsequent DHIS2 resources:
 
 * Organisation units: creates, updates, and deletes
 * Organisation unit groups: creates and updates
@@ -100,7 +101,7 @@ When the database publishes a change for one of the preceding tables, such as a 
 
 ### Consumer
 
-The consumer is a low-code, customisable, event-driven reference solution built in [Apache Camel](https://camel.apache.org/) that runs from [JBang](https://www.jbang.dev/). It creates a [durable subscriber](https://www.enterpriseintegrationpatterns.com/patterns/messaging/DurableSubscription.html) for each configured target DHIS2 server to synchronise the metadata resources published from the org unit sync publisher app. When a subscriber consumes a metadata resource, in case of a row insert or update, it imports the resource into a target DHIS2 server. Alternatively, the subscriber deletes the resource from the target DHIS2 server should the captured change be a row delete of an organisation unit.
+The consumer is a low-code, customisable, event-driven reference solution built in [Apache Camel](https://camel.apache.org/) that runs from [JBang](https://www.jbang.dev/). It creates a [durable subscriber](https://www.enterpriseintegrationpatterns.com/patterns/messaging/DurableSubscription.html) for each configured target DHIS2 server to synchronise the metadata resources published from the org unit sync publisher app. When a subscriber consumes a metadata resource, that is a row insert or an update, it imports the resource into a target DHIS2 server. Alternatively, the subscriber deletes the resource from the target DHIS2 server should the captured change be a row delete of an organisation unit.
 
 The consumer notifies the DHIS2 administrator of the target server when it synchronises a resource on the target. A message will appear in the administrator's inbox informing them the resource that was synchronised. The administrator will also be notified when a failure happens during synchronisation.
 
@@ -112,7 +113,10 @@ The reference broker in this implementation is an embedded [ActiveMQ Artemis](ht
 
 1. Decouple the producer publishing captured database changes from the consumer/s synchronising these changes. This gives the implementer flexibility to add their own consumers. A custom consumer could, for example, synchronise the organisation units with non-DHIS2 target servers.
 
-2. Reliably deliver captured DHIS2 resource changes. The broker delivers a captured change to the consumer from a durable multicast queue which prevents loss of synchronisations due to unforeseen errors (e.g., power outage). The broker permanently removes the captured change from the queue only when (1) the synchronisation has successfully completed, or (2) the synchronisation has failed and is moved to the [dead-letter queue](https://www.enterpriseintegrationpatterns.com/patterns/messaging/DeadLetterChannel.html).
+2. Reliably deliver captured DHIS2 resource changes. The broker delivers a captured change to the consumer from a durable multicast queue which prevents loss of synchronisations due to unforeseen errors (e.g., power outage). The broker permanently removes the captured change from the queue once delivered to the subscriber. Delivery entails that the subscriber:
+   * successfully processed the synchronisation, 
+   * could not successfully process the synchronisation and moved it to the [dead-letter queue](https://www.enterpriseintegrationpatterns.com/patterns/messaging/DeadLetterChannel.html), or 
+   * discarded the synchronisation because it does not support the operation (e.g., delete synchronisation).
 
 It is strongly recommended to replace the embedded broker with a [standalone one](https://activemq.apache.org/components/artemis/documentation/latest/using-server.html#installation) for operational  (e.g., observability) and security reasons. Once you have a standalone broker running, you will need to set both the publisher and consumers app parameters `camel.component.jms.connection-factory.brokerURL` to the standalone broker address.
 
@@ -384,7 +388,23 @@ To execute the tests, from a terminal:
 
 1. Change to the root directory of the reference org unit sync project
 2. Run `docker compose -f tests/compose.yaml up --wait` to stand up the DHIS2 and database Docker containers
-3. Run `yarn playwright test` to execute the test suite
+3. Change to the `publisher` directory and execute `camel run application.properties ../tests/publisher.test.properties`
+4. Change to the `consumer` directory and execute `camel run application.properties ../tests/consumer.test.properties`
+5. Run `yarn playwright test` to execute the test suite.
+
+## Performance
+
+The reference implementation can synchronise arbitrary large change sets given the following preconditions are met:
+
+* The [broker](#broker) has adequate disk space to persist undelivered changes. Artemis stores the captured change until all the [consumer subscribers](#consumer) have acknowledged delivery. The result is that the queue will grow if the consumer is offline or lagging behind the published changes.
+
+* The [publisher](#publisher) keeps up with the table changes. If the publisher falls well behind in the write-ahead log (WAL), then the WAL files can grow to such an extent that the database runs out of disk space. If you are on PostgreSQL >= v13, consider setting the [`max_slot_wal_keep_size`](https://www.postgresql.org/docs/current/runtime-config-replication.html#GUC-MAX-SLOT-WAL-KEEP-SIZE) in the PostgreSQL configuration file to specify the maximum size of WAL files that replication slots are allowed to retain in the `pg_wal` directory at checkpoint time. The default setting retains an unlimited amount of WAL files. Setting `max_slot_wal_keep_size` to an appropriate value ensures that you have a safeguard against an unbounded WAL. Nevertheless, `max_slot_wal_keep_size` comes with the caveat that if its threshold is exceeded, then table changes will be lost and the producer will not be able to progress through the WAL. Such situations should be avoided by have observability tools in place which will trigger an alert when:
+   1. the publisher is down for a long period of time, and
+   2. the replication slot retains the WAL over a certain size.
+
+### Hardware Requirements
+
+The publisher and consumer apps require fairly low memory and disk resources. 4 GB of main memory and 1 GB disk space is more than sufficient to run both the publisher and the consumer apps. Nonetheless, more disk space might be required if the broker is running in embedded mode within the publisher. Moreover, additional memory might be needed for the consumer depending on the amount of target servers it is synchronising. The number of CPU cores required for the apps is as well fairly low. One CPU core per app is recommended, however, additional CPU cores should be considered for the consumer in proportion to the number of target servers it is synchronising.
 
 # Support
 
