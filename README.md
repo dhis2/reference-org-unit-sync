@@ -26,21 +26,23 @@ This is an example meant to guide you in developing your own organisation unit s
 2. Alter the `organisationunit` table in the source DHIS2 PostgreSQL database to capture the names of changed columns. The SQL statement for altering the table is: `ALTER TABLE organisationunit REPLICA IDENTITY FULL;`.
 3. [Create a publication](https://www.postgresql.org/docs/current/sql-createpublication.html) called `dbz_publication` for the group of replicating tables in the source DHIS2 PostgreSQL database. The SQL for creating the publication is: `CREATE PUBLICATION dbz_publication FOR TABLE organisationunit, orgunitgroup, orgunitgroupset;`.
 4. From the environment where you intend to run the reference implementation:
-   1. [Install the Git client](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) and run the command shown next to download the reference implementation repository: `git clone https://github.com/dhis2/reference-org-unit-sync.git`
-   2. [Install the application runner called JBang](https://www.jbang.dev/download/)
-   3. Install the [Camel plugin for JBang](https://camel.apache.org/manual/camel-jbang.html#_installation)
-5. Run the publisher app:
-   1. Edit `application.properties` as shown in the [instructions](#publisher-configuration). This file is located in the `publisher` directory within the cloned `reference-org-unit-sync` repository
+   1. [Install Docker Engine](https://docs.docker.com/engine/install/) if you want to launch [Apache Artemis](https://activemq.apache.org/components/artemis/) from Docker
+   2. [Install the Git client](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) and run the command shown next to download the reference implementation repository: `git clone https://github.com/dhis2/reference-org-unit-sync.git`
+   3. [Install the application runner called JBang](https://www.jbang.dev/download/)
+   4. Install the [Camel plugin for JBang](https://camel.apache.org/manual/camel-jbang.html#_installation)
+5. Launch the Artemis Docker container with the following command: `docker run -d -p 8161:8161 -p 61616:61616 -p 5672:5672 -e ANONYMOUS_LOGIN=true apache/activemq-artemis:2.38.0` or directly launch the server by following the instructions in the [Apache ActiveMQ website](https://activemq.apache.org/components/artemis/documentation/latest/using-server.html#installation).
+6. Run the publisher app:
+   1. Edit `application.properties` as shown in the [instructions](#publisher-configuration) to point to the source DHIS2 Web API and the server's database. This file is located in the `publisher` directory within the cloned `reference-org-unit-sync` repository
    2. From a terminal, change the current directory to `reference-org-unit-sync/publisher` and execute `camel run application.properties`
    3. Watch the app's standard output (e.g., terminal or log file) to confirm that no errors occurred during start-up
-6. Run the consumer app:
-   1. Edit `application.properties` as shown in the [instructions](#consumer-configuration). This file is located in the `consumer` directory within the cloned `reference-org-unit-sync` repository
+7. Run the consumer app:
+   1. Edit `application.properties` as shown in the [instructions](#consumer-configuration) to point to one or more target DHIS2 Web APIs. This file is located in the `consumer` directory within the cloned `reference-org-unit-sync` repository
    2. From a terminal, change the current directory to `reference-org-unit-sync/consumer` and execute `camel run application.properties`
    3. Watch the app's standard output (e.g., terminal or log file) to confirm that no errors occurred during start-up
-7. Open the maintenance app in the source DHIS2 server and add or update an organisation unit, an organisation group, or an organisation group set.
-8. Allow a few seconds for the synchronisation with the target server/s to occur.
-9. From the admin message inbox of the target DHIS2 server/s, you should see a new message notifying that a synchronisation happened.
-10. Inspect the synchronised resource from the maintenance app of the target server/s.
+8. Open the maintenance app in the source DHIS2 server and add or update an organisation unit, an organisation group, or an organisation group set.
+9. Allow a few seconds for the synchronisation with the target server/s to occur.
+10. From the admin message inbox of the target DHIS2 server/s, you should see a new message notifying that a synchronisation happened.
+11. Inspect the synchronised resource from the maintenance app of the target server/s.
 
 ### Monitoring & Management
 
@@ -109,7 +111,7 @@ For simplicity, this reference implementation consists of a single consumer, how
 
 ### Broker
 
-The reference broker in this implementation is an embedded [ActiveMQ Artemis](https://activemq.apache.org/) instance. Its role is to:
+The reference broker in this implementation is [ActiveMQ Artemis](https://activemq.apache.org/) instance. Its role is to:
 
 1. Decouple the producer publishing captured database changes from the consumer/s synchronising these changes. This gives the implementer flexibility to add their own consumers. A custom consumer could, for example, synchronise the organisation units with non-DHIS2 target servers.
 
@@ -118,7 +120,7 @@ The reference broker in this implementation is an embedded [ActiveMQ Artemis](ht
    * could not successfully process the synchronisation and moved it to the [dead-letter queue](https://www.enterpriseintegrationpatterns.com/patterns/messaging/DeadLetterChannel.html), or 
    * discarded the synchronisation because it does not support the operation (e.g., delete synchronisation).
 
-It is strongly recommended to replace the embedded broker with a [standalone one](https://activemq.apache.org/components/artemis/documentation/latest/using-server.html#installation) for operational  (e.g., observability) and security reasons. Once you have a standalone broker running, you will need to set both the publisher and consumers app parameters `camel.component.jms.connection-factory.brokerURL` to the standalone broker address.
+If the broker is not running on the same host as the publisher and consumer, or is listening for messages on a port that is not equal to `61616`, then you will need to change the parameter `camel.component.jms.connection-factory.brokerURL` on both the publisher and consumers apps to point to a different broker address.
 
 ## Publisher Configuration
 
@@ -303,7 +305,7 @@ By default, the app synchronises the first DHIS2 server only with new changes. O
 
 A synchronisation fails when the consumer app could not complete the operation in three attempts. A backoff multiplier increases the time between each attempt. After exhausting the allowed number of retries, the app gives up and stores the failed synchronisation within the [broker](#broker)'s dead-letter queue named `DLQ`. Note that a failed synchronisation for a given target server will NOT cause the entire synchronisation process to abort. The application will jump to the next target server should it fail to synchronise the current target server.
 
-From the [Artemis management console](https://activemq.apache.org/components/artemis/documentation/latest/management-console.html), the system operator can view the `DLQ` queue to inspect the resource IDs together with metadata of failed synchronisations:
+From the [Artemis management console](https://activemq.apache.org/components/artemis/documentation/latest/management-console.html), typically available on port _8161_, the system operator can view the `DLQ` queue to inspect the resource IDs together with metadata of failed synchronisations:
 
 ![browse dead-letter queue](docs/browse-dlq.png)
 
@@ -312,8 +314,6 @@ The error causing the synchronisation to fail can be analysed from the log file 
 ![move message](docs/move-message.png)
 
 If synchronisation fails again because the error persists or a different error occurs, then the newly failed synchronisation is pushed to the dead-letter queue.
-
-On a standalone ActiveMQ Artemis broker, the management console is typically available on port _8161_. By default, however, the management console is unavailable because the publisher runs an embedded Artemis instance. It is strongly recommended to replace the embedded broker with a standalone one for operational (e.g., observability) and security reasons. Once you have a standalone broker running, you will need to set both the producer and consumer app parameters `camel.component.jms.connection-factory.brokerURL` to the standalone broker address.
 
 ### Metadata Resource Mapping
 
@@ -387,7 +387,7 @@ This project ships with automated end-to-end (E2E) tests written in [Playwright]
 To execute the tests, from a terminal:
 
 1. Change to the root directory of the reference org unit sync project
-2. Run `docker compose -f tests/compose.yaml up --wait` to stand up the DHIS2 and database Docker containers
+2. Run `docker compose -f tests/compose.yaml up --wait` to stand up the broker, DHIS2, and database Docker containers
 3. Change to the `publisher` directory and execute `camel run application.properties ../tests/publisher.test.properties`
 4. Change to the `consumer` directory and execute `camel run application.properties ../tests/consumer.test.properties`
 5. Run `yarn playwright test` to execute the test suite.
@@ -404,7 +404,7 @@ The reference implementation can synchronise arbitrary large change sets given t
 
 ### Hardware Requirements
 
-The publisher and consumer apps require fairly low memory and disk resources. 4 GB of main memory and 1 GB disk space is more than sufficient to run both the publisher and the consumer apps. Nonetheless, more disk space might be required if the broker is running in embedded mode within the publisher. Moreover, additional memory might be needed for the consumer depending on the amount of target servers it is synchronising. The number of CPU cores required for the apps is as well fairly low. One CPU core per app is recommended, however, additional CPU cores should be considered for the consumer in proportion to the number of target servers it is synchronising.
+The publisher and consumer apps require fairly low memory and disk resources. 4 GiB of main memory and 1 GB disk space is more than sufficient to run both the publisher and the consumer apps. Nonetheless, additional memory might be needed for the consumer depending on the amount of target servers it is synchronising. The number of CPU cores required for the apps is as well fairly low. One CPU core per app is recommended, however, additional CPU cores should be considered for the consumer in proportion to the number of target servers it is synchronising.
 
 # Support
 
