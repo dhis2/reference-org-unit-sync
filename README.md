@@ -26,11 +26,11 @@ This is an example meant to guide you in developing your own organisation unit s
 2. Alter the `organisationunit` table in the source DHIS2 PostgreSQL database to capture the names of changed columns. The SQL statement for altering the table is: `ALTER TABLE organisationunit REPLICA IDENTITY FULL;`.
 3. [Create a publication](https://www.postgresql.org/docs/current/sql-createpublication.html) called `dbz_publication` for the group of replicating tables in the source DHIS2 PostgreSQL database. The SQL for creating the publication is: `CREATE PUBLICATION dbz_publication FOR TABLE organisationunit, orgunitgroup, orgunitgroupset;`.
 4. From the environment where you intend to run the reference implementation:
-   1. [Install Docker Engine](https://docs.docker.com/engine/install/) if you want to launch [Apache Artemis](https://activemq.apache.org/components/artemis/) from Docker
+   1. [Install Docker Engine](https://docs.docker.com/engine/install/). This step can be skipped if you want to launch [Apache Artemis](https://activemq.apache.org/components/artemis/) in a different way.
    2. [Install the Git client](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) and run the command shown next to download the reference implementation repository: `git clone https://github.com/dhis2/reference-org-unit-sync.git`
    3. [Install the application runner called JBang](https://www.jbang.dev/download/)
    4. Install the [Camel plugin for JBang](https://camel.apache.org/manual/camel-jbang.html#_installation)
-5. Launch the Artemis Docker container with the following command: `docker run -d -p 8161:8161 -p 61616:61616 -p 5672:5672 -e ANONYMOUS_LOGIN=true apache/activemq-artemis:2.38.0` or directly launch the server by following the instructions in the [Apache ActiveMQ website](https://activemq.apache.org/components/artemis/documentation/latest/using-server.html#installation).
+5. Launch the Artemis Docker container with the following command: `docker run -d -p 8161:8161 -p 61616:61616 -p 5672:5672 -e ANONYMOUS_LOGIN=true apache/activemq-artemis:2.42.0` or directly launch the server by following the instructions in the [Apache ActiveMQ website](https://activemq.apache.org/components/artemis/documentation/latest/using-server.html#installation).
 6. Run the publisher app:
    1. Edit `application.properties` as shown in the [instructions](#publisher-configuration) to point to the source DHIS2 Web API and the server's database. This file is located in the `publisher` directory within the cloned `reference-org-unit-sync` repository
    2. From a terminal, change the current directory to `reference-org-unit-sync/publisher` and execute `camel run application.properties`
