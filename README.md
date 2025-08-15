@@ -7,7 +7,7 @@
 5. [Consumer Configuration](#consumer-configuration)
 6. [Features](#features)
 7. [Adaptation](#adaptation)
-8. [Performance](#performance)
+8. [Performance Considerations](#performance-considerations)
 9. [Support](#support)
 
 ## What is this implementation?
@@ -392,7 +392,7 @@ To execute the tests, from a terminal:
 4. Change to the `consumer` directory and execute `camel run application.properties ../tests/consumer.test.properties`
 5. Run `yarn playwright test` to execute the test suite.
 
-## Performance
+## Performance Considerations
 
 The reference implementation can synchronise arbitrary large change sets given the following preconditions are met:
 
