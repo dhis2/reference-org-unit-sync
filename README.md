@@ -2,12 +2,29 @@
 
 1. [What is this implementation?](#what-is-this-implementation)
 2. [Quick Start](#quick-start)
+   + [Monitoring & Management](#monitoring--management)
 3. [Overview](#overview)
+   + [Primary DHIS2 Server](#primary-dhis2-server)
+   + [Target DHIS2 Server](#target-dhis2-server)
+   + [Publisher](#publisher)
+   + [Consumer](#consumer)
+   + [Broker](#broker)
 4. [Publisher Configuration](#publisher-configuration)
 5. [Consumer Configuration](#consumer-configuration)
 6. [Features](#features)
+   + [Synchronisation Approval](#synchronisation-approval)
+   + [Full synchronisation](#full-synchronisation)
+      - [Publisher](#publisher-1)
+      - [Consumer](#consumer-1)
+   + [Synchronisation replay](#synchronisation-replay)
+   + [Metadata Resource Mapping](#metadata-resource-mapping)
 7. [Adaptation](#adaptation)
+   + [Non-DHIS2 target](#non-dhis2-target)
+   + [Approval workflow](#approval-workflow)
+   + [Synchronised resources](#synchronised-resources)
+   + [Running E2E Tests](#running-e2e-tests)
 8. [Performance Considerations](#performance-considerations)
+   + [Hardware Requirements](#hardware-requirements)
 9. [Support](#support)
 
 ## What is this implementation?
@@ -406,6 +423,6 @@ The reference implementation can synchronise arbitrary large change sets given t
 
 The publisher and consumer apps require fairly low memory and disk resources. 4 GiB of main memory and 1 GB disk space is more than sufficient to run both the publisher and the consumer apps. Nonetheless, additional memory might be needed for the consumer depending on the amount of target servers it is synchronising. The number of CPU cores required for the apps is as well fairly low. One CPU core per app is recommended, however, additional CPU cores should be considered for the consumer in proportion to the number of target servers it is synchronising.
 
-# Support
+## Support
 
 Questions or feedback about this reference implementation can be posted on the [DHIS2 Community of Practice](https://community.dhis2.org/). Contributions in the form of [pull requests](https://github.com/dhis2/reference-org-unit-sync/pulls) are more than welcome.
