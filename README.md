@@ -344,7 +344,7 @@ By way of illustration, consider the following resource map referenced from the 
 target.1.resourceMap.file=target1/resourceMap.csv
 ```
 
-Note: you can have multiple targets using the same mapping file. `resourceMap.csv` is shown to be like this:
+Note: you can have multiple targets using the same mapping file. `resourceMap.csv` is a file containing these mappings:
 
 ```csv
 source_name,name,shortName,code
