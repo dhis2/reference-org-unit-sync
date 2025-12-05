@@ -334,7 +334,7 @@ If synchronisation fails again because the error persists or a different error o
 
 ### Metadata Resource Mapping
 
-It is entirely possible that the metadata resources in the target DHIS2 implementations to synchronise are completely out of sync from the source DHIS2 server. Without matching metadata identifiers like the `name` or `id`, it becomes impossible for a metadata sync solution to locate the target metadata resource to synchronise. For such scenarios, the implementer should author a metadata resource map and then reference it from the `target.[n].resourceMap.file` consumer app parameter. 
+It is entirely possible that the metadata resources in the target DHIS2 implementations to synchronise are completely out of sync from the source DHIS2 server. Without matching metadata identifiers like the `code` or `id`, it becomes impossible for a metadata sync solution to locate the target metadata resource to synchronise. For such scenarios, the implementer should author a metadata resource map and then reference it from the `target.[n].resourceMap.file` consumer app parameter. 
 
 A resource map is a comma-delimited CSV with headers that defines mappings for target metadata resources. The CSV needs to have one column prefixed with `source_` denoting the source metadata identifier that a mapping will match on. All other columns in the CSV denote the fields that the source metadata resource will be mapped to.
 
