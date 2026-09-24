@@ -35,7 +35,7 @@ A frequent requirement in an architecture with multiple DHIS2 instances is keepi
 * Organisation unit groups: creates and updates
 * Organisation unit group sets: creates and updates
 
-This is a working example meant to technically guide you in developing your own organisation unit synchronisation solution. It **SHOULD NOT** be used directly in production without adapting it to your local context. Prior to studying the software artefact, it is important to read the [guidance on maintaining organisation units over time](https://docs.dhis2.org/en/implement/maintenance-and-use/organisation-unit-maintenance.html) for organisation unit governance and standard operating procedures to effectively manage while also maintain one of the foundational elements of the DHIS2 metadata and data model.
+The expected audience of this reference implementation are enterprise and solutions architects, implementation engineers, integrators. This is a working example meant to technically guide you in developing your own organisation unit synchronisation solution. It **SHOULD NOT** be used directly in production without adapting it to your own local context. Prior to studying the software artefact, it is important to read the [guidance on maintaining organisation units over time](https://docs.dhis2.org/en/implement/maintenance-and-use/organisation-unit-maintenance.html) for organisation unit governance and standard operating procedures to effectively manage while also maintain one of the foundational elements of the DHIS2 metadata and data model.
 
 ## Quick Start
 
